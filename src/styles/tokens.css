@@ -52,8 +52,14 @@
   --k-search-active: #6750d8;
   --k-search-active-text: #ffffff;
 
-  /* Signature gradient, drawn from the manta icon. Used sparingly: selection,
-     primary CTA, active/checked states and the toolbar divider. */
+  /* Selection must be a solid colour: Chromium does not reliably paint a
+     gradient on ::selection, which made selected text look unstyled. */
+  --k-selection: #6750d8;
+  --k-selection-text: #ffffff;
+
+  /* Signature gradient, drawn from the manta icon. Used sparingly: primary
+     CTA, active/checked states and the toolbar divider. Selection uses a
+     solid token because Chromium does not paint gradients on ::selection. */
   --k-gradient: linear-gradient(135deg, #6336e8 0%, #9867ff 45%, #d6c5ff 80%, #faf7ff 100%);
   --k-gradient-cta: linear-gradient(135deg, #6336e8, #7c4dff);
   --k-gradient-divider: linear-gradient(180deg, #6336e8 0%, #9867ff 50%, #d6c5ff 100%);
@@ -63,11 +69,12 @@
   --k-popover-shadow: 0 10px 28px rgba(16, 24, 40, 0.16);
 
   /* ---- typography ------------------------------------------------------ */
-  --k-font-ui: "Segoe UI Variable Text", "Segoe UI Variable", "Segoe UI", system-ui,
-    -apple-system, "Helvetica Neue", sans-serif;
-  --k-font-document: "Inter", "Segoe UI Variable Text", "Segoe UI Variable", "Segoe UI",
-    system-ui, sans-serif;
-  --k-font-code: "Cascadia Code", "Cascadia Mono", Consolas, "Courier New", monospace;
+  --k-font-ui:
+    'Segoe UI Variable Text', 'Segoe UI Variable', 'Segoe UI', system-ui, -apple-system,
+    'Helvetica Neue', sans-serif;
+  --k-font-document:
+    'Inter', 'Segoe UI Variable Text', 'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif;
+  --k-font-code: 'Cascadia Code', 'Cascadia Mono', Consolas, 'Courier New', monospace;
 
   --k-font-size-toolbar: 13px;
   --k-line-height-toolbar: 18px;
@@ -103,7 +110,7 @@
   --k-zoom: 1;
 }
 
-[data-theme="dark"] {
+[data-theme='dark'] {
   color-scheme: dark;
 
   --k-primary: #7c4dff;
@@ -142,6 +149,9 @@
 
   --k-search-active: #966bff;
   --k-search-active-text: #141126;
+
+  --k-selection: #966bff;
+  --k-selection-text: #141126;
 
   /* The soft document shadow is a light-mode-only affordance. */
   --k-document-shadow: none;
@@ -186,8 +196,8 @@ body {
 }
 
 ::selection {
-  background: var(--k-gradient-cta);
-  color: #faf7ff;
+  background: var(--k-selection);
+  color: var(--k-selection-text);
 }
 
 /* Quiet scrollbars so the chrome stays understated. */
