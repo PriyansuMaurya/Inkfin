@@ -118,7 +118,7 @@
   padding: 0;
 }
 
-.btn[aria-pressed="true"] {
+.btn[aria-pressed='true'] {
   background: var(--k-gradient-cta);
   color: var(--k-on-primary);
 }
@@ -222,7 +222,7 @@
   background: var(--k-surface-hover);
 }
 
-.menu-item[aria-checked="true"] {
+.menu-item[aria-checked='true'] {
   background: var(--k-gradient-cta);
   color: var(--k-on-primary);
   font-weight: 600;
@@ -361,7 +361,7 @@
   white-space: nowrap;
 }
 
-.search-count[data-empty="true"] {
+.search-count[data-empty='true'] {
   color: var(--k-warning);
 }
 
@@ -430,14 +430,16 @@
   /* Signature gradient on the brand title. The full manta gradient lives in
      dark mode; light mode uses the darker CTA pair so the text never fades
      into the near-white background. */
-  background: var(--k-gradient-cta);
+  /* background-image, not the background shorthand: the shorthand would
+     reset background-clip to border-box and unclip the transparent text. */
+  background-image: var(--k-gradient-cta);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
 }
 
-[data-theme="dark"] .empty-state-title {
-  background: var(--k-gradient);
+[data-theme='dark'] .empty-state-title {
+  background-image: var(--k-gradient);
 }
 
 .empty-state-copy {
