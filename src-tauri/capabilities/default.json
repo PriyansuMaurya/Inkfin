@@ -1,0 +1,13 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Minimum permissions the reading surface needs: window/event plumbing, the native open dialog and local preference storage. No filesystem or shell plugin is granted.",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "core:window:allow-set-theme",
+    "core:window:allow-set-title",
+    "dialog:allow-open",
+    "store:default"
+  ]
+}

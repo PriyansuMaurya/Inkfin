@@ -1,0 +1,550 @@
+/* Application shell: toolbar, notices, search, reading surface and status. */
+
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--k-background);
+  position: relative;
+}
+
+/* ---------------------------------------------------------------- toolbar */
+
+.toolbar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: var(--k-space-2);
+  height: var(--k-toolbar-height);
+  padding: 0 var(--k-space-4);
+  background: var(--k-surface-chrome);
+  /* Drawn inside the box so the toolbar is exactly 52 px tall. */
+  box-shadow: inset 0 -1px 0 var(--k-border);
+  font-size: var(--k-font-size-toolbar);
+  line-height: var(--k-line-height-toolbar);
+  user-select: none;
+}
+
+.toolbar-spacer {
+  flex: 1 1 auto;
+  min-width: var(--k-space-2);
+}
+
+.toolbar-divider {
+  flex: 0 0 auto;
+  width: 1px;
+  height: 20px;
+  margin: 0 var(--k-space-2);
+  background: var(--k-gradient-divider);
+}
+
+/* The filename is quiet metadata, not a control. */
+.toolbar-filename {
+  display: flex;
+  align-items: center;
+  gap: var(--k-space-2);
+  min-width: 0;
+  color: var(--k-muted);
+}
+
+.toolbar-filename-icon {
+  flex: 0 0 auto;
+  color: var(--k-secondary);
+}
+
+.toolbar-filename-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+  color: var(--k-text);
+}
+
+.toolbar-filename-path {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--k-muted);
+}
+
+/* ---------------------------------------------------------------- buttons */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--k-space-2);
+  flex: 0 0 auto;
+  height: var(--k-control-height);
+  min-width: var(--k-touch-target);
+  padding: 0 var(--k-space-3);
+  border: 1px solid transparent;
+  border-radius: var(--k-control-radius);
+  background: transparent;
+  color: var(--k-secondary);
+  font: inherit;
+  font-size: var(--k-font-size-toolbar);
+  font-weight: 500;
+  line-height: var(--k-line-height-toolbar);
+  cursor: pointer;
+  transition:
+    background-color var(--k-duration-fast) ease,
+    color var(--k-duration-fast) ease,
+    border-color var(--k-duration-fast) ease,
+    filter var(--k-duration-fast) ease;
+}
+
+.btn:hover:not(:disabled) {
+  background: var(--k-surface-hover);
+  color: var(--k-text);
+}
+
+.btn:active:not(:disabled) {
+  background: var(--k-surface-pressed);
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--k-focus-ring);
+  outline-offset: 2px;
+}
+
+.btn-icon {
+  width: var(--k-touch-target);
+  padding: 0;
+}
+
+.btn[aria-pressed="true"] {
+  background: var(--k-gradient-cta);
+  color: var(--k-on-primary);
+}
+
+.btn-primary {
+  background: var(--k-gradient-cta);
+  border-color: var(--k-primary);
+  color: var(--k-on-primary);
+  padding: 0 var(--k-space-4);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--k-gradient-cta);
+  border-color: var(--k-primary-hover);
+  filter: brightness(1.08);
+  color: var(--k-on-primary);
+}
+
+.btn-primary:active:not(:disabled) {
+  background: var(--k-gradient-cta);
+  border-color: var(--k-primary-pressed);
+  filter: brightness(0.92);
+}
+
+.btn-quiet {
+  color: var(--k-secondary);
+}
+
+.btn-large {
+  height: 40px;
+  padding: 0 var(--k-space-5);
+}
+
+/* Zoom group: − 100% + */
+.zoom-group {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+}
+
+.zoom-value {
+  min-width: 52px;
+  padding: 0 var(--k-space-1);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--k-secondary);
+}
+
+.btn-label {
+  white-space: nowrap;
+}
+
+/* ------------------------------------------------------------------ menu */
+
+.menu-anchor {
+  position: relative;
+  display: inline-flex;
+}
+
+.menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 20;
+  min-width: 168px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--k-space-1);
+  border: 1px solid var(--k-border);
+  border-radius: 10px;
+  background: var(--k-surface-card);
+  box-shadow: var(--k-popover-shadow);
+}
+
+.menu-heading {
+  padding: var(--k-space-1) var(--k-space-2) var(--k-space-2);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--k-muted);
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: var(--k-space-2);
+  height: 32px;
+  padding: 0 var(--k-space-2);
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--k-text);
+  font: inherit;
+  font-size: var(--k-font-size-toolbar);
+  text-align: left;
+  cursor: pointer;
+}
+
+.menu-item:hover {
+  background: var(--k-surface-hover);
+}
+
+.menu-item[aria-checked="true"] {
+  background: var(--k-gradient-cta);
+  color: var(--k-on-primary);
+  font-weight: 600;
+}
+
+.menu-item-label {
+  flex: 1 1 auto;
+}
+
+.menu-check {
+  flex: 0 0 auto;
+}
+
+/* Report of what `System` currently resolves to, so the choice is never vague. */
+.menu-note {
+  padding: var(--k-space-2) var(--k-space-2) var(--k-space-1);
+  border-top: 1px solid var(--k-border);
+  margin-top: var(--k-space-1);
+  color: var(--k-muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+/* ----------------------------------------------------------------- notice */
+
+.notice {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: var(--k-space-3);
+  padding: var(--k-space-3) var(--k-space-4);
+  border-bottom: 1px solid var(--k-notice-border);
+  background: var(--k-notice-surface);
+  color: var(--k-warning);
+  font-size: var(--k-font-size-toolbar);
+  line-height: var(--k-line-height-toolbar);
+}
+
+.notice-icon {
+  flex: 0 0 auto;
+}
+
+.notice-body {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.notice-message {
+  display: block;
+}
+
+.notice-detail {
+  display: block;
+  margin-top: 2px;
+  color: var(--k-secondary);
+  font-size: var(--k-font-size-status);
+  line-height: var(--k-line-height-status);
+}
+
+.notice-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--k-space-2);
+  flex: 0 0 auto;
+}
+
+.notice .btn {
+  height: 28px;
+  min-width: 28px;
+  padding: 0 var(--k-space-2);
+  color: inherit;
+  font-size: var(--k-font-size-status);
+}
+
+.notice .btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--k-warning) 12%, transparent);
+  color: var(--k-warning);
+}
+
+/* ----------------------------------------------------------------- search */
+
+.search-bar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: var(--k-space-2);
+  padding: var(--k-space-2) var(--k-space-4);
+  border-bottom: 1px solid var(--k-border);
+  background: var(--k-surface-sunken);
+}
+
+.search-field {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+}
+
+.search-field-icon {
+  position: absolute;
+  right: var(--k-space-3);
+  color: var(--k-muted);
+  pointer-events: none;
+}
+
+.search-input {
+  width: 100%;
+  height: var(--k-control-height);
+  padding: 0 34px 0 var(--k-space-3);
+  border: 1px solid var(--k-border);
+  border-radius: var(--k-control-radius);
+  background: var(--k-document);
+  color: var(--k-text);
+  font: inherit;
+  font-size: var(--k-font-size-toolbar);
+}
+
+.search-input::placeholder {
+  color: var(--k-muted);
+}
+
+.search-input:focus-visible {
+  border-color: var(--k-primary);
+  outline: 2px solid var(--k-focus-ring);
+  outline-offset: 1px;
+}
+
+.search-count {
+  flex: 0 0 auto;
+  min-width: 76px;
+  text-align: right;
+  color: var(--k-muted);
+  font-size: var(--k-font-size-status);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.search-count[data-empty="true"] {
+  color: var(--k-warning);
+}
+
+/* ------------------------------------------------------------- status strip */
+
+.status {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: var(--k-space-3);
+  height: var(--k-status-height);
+  padding: 0 var(--k-space-4);
+  background: var(--k-surface-sunken);
+  box-shadow: inset 0 1px 0 var(--k-border);
+  color: var(--k-muted);
+  font-size: var(--k-font-size-status);
+  line-height: var(--k-line-height-status);
+  user-select: none;
+}
+
+.status-item {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.status-item-grow {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.status-item-fixed {
+  flex: 0 0 auto;
+  font-variant-numeric: tabular-nums;
+}
+
+.status-warning {
+  color: var(--k-warning);
+  font-weight: 600;
+}
+
+/* ------------------------------------------------------------ empty state */
+
+.empty-state {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--k-space-4);
+  padding: var(--k-space-7) var(--k-space-5);
+  text-align: center;
+  background: var(--k-background);
+}
+
+.empty-state-icon {
+  color: var(--k-primary);
+}
+
+.empty-state-title {
+  margin: 0;
+  color: var(--k-text);
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 28px;
+  /* Signature gradient on the brand title. The full manta gradient lives in
+     dark mode; light mode uses the darker CTA pair so the text never fades
+     into the near-white background. */
+  background: var(--k-gradient-cta);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+[data-theme="dark"] .empty-state-title {
+  background: var(--k-gradient);
+}
+
+.empty-state-copy {
+  margin: 0;
+  max-width: 44ch;
+  color: var(--k-muted);
+  font-size: var(--k-font-size-toolbar);
+  line-height: 1.6;
+}
+
+.empty-state-hint {
+  margin: 0;
+  color: var(--k-muted);
+  font-size: var(--k-font-size-status);
+}
+
+/* A failure with no document to fall back on: the only full-surface error. */
+.error-state {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--k-space-4);
+  padding: var(--k-space-7) var(--k-space-5);
+  text-align: center;
+  background: var(--k-background);
+}
+
+.error-state-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--k-space-3);
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+/* Drop affordance shown while files are dragged over the window. */
+.drop-overlay {
+  position: absolute;
+  inset: var(--k-space-4);
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--k-space-3);
+  border: 2px dashed var(--k-primary);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--k-document) 88%, transparent);
+  color: var(--k-primary);
+  font-size: var(--k-font-size-toolbar);
+  font-weight: 600;
+  pointer-events: none;
+}
+
+/* ---------------------------------------------------------------- responsive */
+
+@media (max-width: 640px) {
+  :root {
+    --k-document-padding-inline: 20px;
+    --k-document-padding-block-start: 32px;
+  }
+
+  .toolbar {
+    padding: 0 var(--k-space-3);
+    gap: var(--k-space-1);
+  }
+
+  .toolbar-divider {
+    margin: 0 var(--k-space-1);
+  }
+
+  /* Labels give way so every action stays reachable without an overflow menu. */
+  .btn-label,
+  .toolbar-filename-path {
+    display: none;
+  }
+
+  .btn-open-file {
+    width: var(--k-touch-target);
+    padding: 0;
+  }
+
+  .toolbar-filename {
+    max-width: 30vw;
+  }
+
+  .search-bar {
+    padding: var(--k-space-2) var(--k-space-3);
+  }
+
+  .search-count {
+    min-width: 58px;
+  }
+
+  .status {
+    padding: 0 var(--k-space-3);
+  }
+}
+
+@media (max-width: 520px) {
+  .toolbar-divider {
+    display: none;
+  }
+
+  .zoom-value {
+    min-width: 44px;
+  }
+}

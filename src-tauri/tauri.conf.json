@@ -1,0 +1,72 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "productName": "Inkfin",
+  "version": "0.1.0",
+  "identifier": "com.inkfin.viewer",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "withGlobalTauri": false,
+    "windows": [
+      {
+        "label": "main",
+        "title": "Inkfin",
+        "width": 900,
+        "height": 650,
+        "minWidth": 480,
+        "minHeight": 360,
+        "resizable": true,
+        "center": true,
+        "decorations": true,
+        "dragDropEnabled": true,
+        "theme": null,
+        "backgroundColor": "#0C0B17"
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; font-src 'self'; connect-src 'self' ipc: http://ipc.localhost; object-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'; media-src 'none'; worker-src 'none'",
+      "capabilities": ["default"],
+      "assetProtocol": {
+        "enable": false,
+        "scope": []
+      }
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis"],
+    "category": "Utility",
+    "shortDescription": "Read local Markdown files as a polished document.",
+    "longDescription": "Inkfin opens a single local .md or .markdown file and renders it as a GitHub Flavoured Markdown document, with syntax highlighting, themes, visible text search, document zoom and automatic refresh when the file changes on disk. Read-only: nothing is written to your documents and no network requests are made.",
+    "copyright": "Inkfin",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.ico"
+    ],
+    "fileAssociations": [
+      {
+        "ext": ["md", "markdown"],
+        "name": "Markdown Document",
+        "description": "Markdown document",
+        "mimeType": "text/markdown",
+        "role": "Viewer"
+      }
+    ],
+    "windows": {
+      "webviewInstallMode": {
+        "type": "embedBootstrapper"
+      },
+      "nsis": {
+        "installMode": "currentUser",
+        "installerIcon": "icons/icon.ico",
+        "displayLanguageSelector": false
+      }
+    }
+  }
+}

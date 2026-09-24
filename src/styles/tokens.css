@@ -1,0 +1,230 @@
+/*
+ * Semantic design tokens.
+ *
+ * Values come from DESIGN.md's colour table and typography scale. A few
+ * additional surface tokens (chrome, notice, code header, table) are derived
+ * from the mockups and are documented in MEMORY.md; components must always
+ * reference a token rather than a literal colour.
+ */
+
+:root {
+  color-scheme: light;
+
+  /* ---- roles ---------------------------------------------------------- */
+  --k-primary: #6750d8;
+  --k-primary-hover: #5a45c4;
+  --k-primary-pressed: #4e3bae;
+  /* Text colour that stays legible on a filled primary surface. */
+  --k-on-primary: #ffffff;
+  --k-secondary: #6b6382;
+  --k-background: #f8f6fc;
+  --k-document: #ffffff;
+  --k-document-text: #181424;
+  --k-text: #181424;
+  --k-muted: #7e7794;
+  --k-border: #eee9fa;
+  --k-code-surface: #f4f1fb;
+  --k-warning: #92400e;
+  --k-search-match: #ddd2ff;
+
+  /* Document typography: headings lean violet, body stays near-black. */
+  --k-doc-heading: #34247f;
+  --k-doc-link: #6750d8;
+  --k-inline-code-text: #5540be;
+
+  /* ---- derived surfaces ----------------------------------------------- */
+  --k-surface-chrome: #ffffff;
+  --k-surface-sunken: #f1edfa;
+  --k-surface-hover: #ece7f8;
+  --k-surface-pressed: #e3dcf4;
+  --k-surface-card: #ffffff;
+  --k-notice-surface: #fef6e7;
+  --k-notice-border: #f0d5a8;
+  --k-code-header: #ece7f7;
+  --k-code-border: #e3dcf3;
+  --k-inline-code-surface: #f1ecfb;
+  --k-table-header: #f5f2fc;
+  --k-table-stripe: #faf9fe;
+  --k-checkbox-border: #8b83a8;
+
+  /* Search: the active match uses the accent colour so it never relies on
+     colour alone to be distinguishable from the other matches. */
+  --k-search-active: #6750d8;
+  --k-search-active-text: #ffffff;
+
+  /* Signature gradient, drawn from the manta icon. Used sparingly: selection,
+     primary CTA, active/checked states and the toolbar divider. */
+  --k-gradient: linear-gradient(135deg, #6336e8 0%, #9867ff 45%, #d6c5ff 80%, #faf7ff 100%);
+  --k-gradient-cta: linear-gradient(135deg, #6336e8, #7c4dff);
+  --k-gradient-divider: linear-gradient(180deg, #6336e8 0%, #9867ff 50%, #d6c5ff 100%);
+
+  --k-focus-ring: var(--k-primary);
+  --k-document-shadow: 0 2px 12px rgba(16, 24, 40, 0.05);
+  --k-popover-shadow: 0 10px 28px rgba(16, 24, 40, 0.16);
+
+  /* ---- typography ------------------------------------------------------ */
+  --k-font-ui: "Segoe UI Variable Text", "Segoe UI Variable", "Segoe UI", system-ui,
+    -apple-system, "Helvetica Neue", sans-serif;
+  --k-font-document: "Inter", "Segoe UI Variable Text", "Segoe UI Variable", "Segoe UI",
+    system-ui, sans-serif;
+  --k-font-code: "Cascadia Code", "Cascadia Mono", Consolas, "Courier New", monospace;
+
+  --k-font-size-toolbar: 13px;
+  --k-line-height-toolbar: 18px;
+  --k-font-size-status: 12px;
+  --k-line-height-status: 16px;
+  --k-font-size-document: 16px;
+  --k-code-font-scale: 0.8125; /* 13px at 100% */
+
+  /* ---- geometry -------------------------------------------------------- */
+  --k-toolbar-height: 52px;
+  --k-status-height: 28px;
+  --k-control-height: 36px;
+  --k-touch-target: 36px;
+  --k-control-radius: 8px;
+  --k-document-width: 760px;
+  --k-document-padding-block-start: 44px;
+  --k-document-padding-inline: 40px;
+  --k-document-padding-block-end: 48px;
+
+  --k-space-1: 4px;
+  --k-space-2: 8px;
+  --k-space-3: 12px;
+  --k-space-4: 16px;
+  --k-space-5: 24px;
+  --k-space-6: 32px;
+  --k-space-7: 48px;
+
+  --k-duration-fast: 120ms;
+  --k-duration: 150ms;
+
+  /* Document zoom, applied to document typography only so the reading column
+     keeps its width and never introduces page-wide horizontal scrolling. */
+  --k-zoom: 1;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --k-primary: #7c4dff;
+  --k-primary-hover: #966bff;
+  --k-primary-pressed: #6336e8;
+  --k-on-primary: #faf7ff;
+  --k-secondary: #aaa4bd;
+  --k-background: #0c0b17;
+  --k-document: #141126;
+  --k-document-text: #ece9f5;
+  --k-text: #f7f5ff;
+  --k-muted: #746e87;
+  --k-border: #302a48;
+  --k-code-surface: #1c1830;
+  --k-warning: #fbbf24;
+  --k-search-match: #4b3e8f;
+
+  /* Raw-markdown violet tint, rendered body almost white. */
+  --k-doc-heading: #b89aff;
+  --k-doc-link: #9c7cff;
+  --k-inline-code-text: #d8ccff;
+
+  --k-surface-chrome: #141126;
+  --k-surface-sunken: #0a0912;
+  --k-surface-hover: #26203d;
+  --k-surface-pressed: #302a48;
+  --k-surface-card: #1c1830;
+  --k-notice-surface: #201a38;
+  --k-notice-border: #3b3158;
+  --k-code-header: #26203d;
+  --k-code-border: #302a48;
+  --k-inline-code-surface: #1c1830;
+  --k-table-header: #1c1830;
+  --k-table-stripe: #191531;
+  --k-checkbox-border: #746e87;
+
+  --k-search-active: #966bff;
+  --k-search-active-text: #141126;
+
+  /* The soft document shadow is a light-mode-only affordance. */
+  --k-document-shadow: none;
+  --k-popover-shadow: 0 10px 28px rgba(0, 0, 0, 0.5);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --k-duration-fast: 0ms;
+    --k-duration: 0ms;
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--k-font-ui);
+  font-size: var(--k-font-size-toolbar);
+  line-height: var(--k-line-height-toolbar);
+  background: var(--k-background);
+  color: var(--k-text);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overflow: hidden;
+}
+
+/* Visible, consistent keyboard focus everywhere. */
+:focus-visible {
+  outline: 2px solid var(--k-focus-ring);
+  outline-offset: 2px;
+}
+
+::selection {
+  background: var(--k-gradient-cta);
+  color: #faf7ff;
+}
+
+/* Quiet scrollbars so the chrome stays understated. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--k-border) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--k-border);
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background-clip: content-box;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--k-muted);
+  background-clip: content-box;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}

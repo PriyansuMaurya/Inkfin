@@ -1,0 +1,16 @@
+/*
+ * Tailwind is used for its reset and layout utilities only. Every colour, size
+ * and surface in the product comes from the semantic tokens in tokens.css, so
+ * components never carry literal colours.
+ */
+@import "tailwindcss";
+
+/* The semantic tokens already own colour, so Tailwind's palette utilities are
+   not needed; keeping them off avoids accidental hard-coded colours. */
+@theme {
+  --font-sans: var(--k-font-ui);
+  --font-mono: var(--k-font-code);
+}
+
+/* Tailwind's reset removes list markers; the document restores the ones it
+   needs in document.css. */

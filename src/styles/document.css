@@ -1,0 +1,396 @@
+/*
+ * The reading surface.
+ *
+ * All document typography is expressed in `em` so that changing the zoom token
+ * scales the whole document proportionally, while the reading column keeps the
+ * fixed width that prevents page-wide horizontal scrolling.
+ */
+
+.reader {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: var(--k-background);
+}
+
+.document-column {
+  flex: 1 0 auto;
+  width: 100%;
+  max-width: var(--k-document-width);
+  margin: 0 auto;
+  padding: var(--k-document-padding-block-start) var(--k-document-padding-inline)
+    var(--k-document-padding-block-end);
+  background: var(--k-document);
+  box-shadow: var(--k-document-shadow);
+  color: var(--k-document-text);
+  font-family: var(--k-font-document);
+  font-size: calc(var(--k-font-size-document) * var(--k-zoom));
+  line-height: 1.625;
+  overflow-wrap: break-word;
+}
+
+.document > *:first-child {
+  margin-top: 0;
+}
+
+.document > *:last-child {
+  margin-bottom: 0;
+}
+
+/* --------------------------------------------------------------- headings */
+
+.document h1,
+.document h2,
+.document h3,
+.document h4,
+.document h5,
+.document h6 {
+  margin: 2em 0 0.75em; /* 32 px above, 12 px below at 100 % */
+  font-weight: 600;
+  color: var(--k-doc-heading);
+  scroll-margin-top: 1em;
+}
+
+.document h1 {
+  font-size: 2em; /* 32 / 40 */
+  line-height: 1.25;
+}
+
+.document h2 {
+  font-size: 1.5em; /* 24 / 32 */
+  line-height: 1.3333;
+}
+
+.document h3 {
+  font-size: 1.25em; /* 20 / 28 */
+  line-height: 1.4;
+}
+
+.document h4 {
+  font-size: 1.125em; /* 18 / 26 */
+  line-height: 1.4444;
+}
+
+.document h5,
+.document h6 {
+  font-size: 1em; /* 16 / 26 */
+  line-height: 1.625;
+}
+
+.document h6 {
+  color: var(--k-muted);
+}
+
+/* ------------------------------------------------------------- text blocks */
+
+.document p {
+  margin: 1em 0; /* 16 px paragraph gap */
+}
+
+.document strong {
+  font-weight: 600;
+}
+
+/* ------------------------------------------------------------- lists */
+
+.document ul,
+.document ol {
+  margin: 1em 0;
+  padding-left: 1.5em; /* 24 px list indentation */
+}
+
+.document li {
+  margin: 0.25em 0;
+}
+
+.document li > ul,
+.document li > ol {
+  margin: 0.25em 0;
+}
+
+.document .contains-task-list {
+  padding-left: 1.25em;
+}
+
+.document .task-list-item {
+  list-style: none;
+}
+
+.document .task-list-item > input[type="checkbox"],
+.document .task-list-item > p > input[type="checkbox"] {
+  margin-right: 0.5em;
+  vertical-align: middle;
+  /* Task boxes are a read-only record of the document, never an input. */
+  accent-color: var(--k-primary);
+  cursor: default;
+  opacity: 1;
+}
+
+/* ------------------------------------------------------------- blockquote */
+
+.document blockquote {
+  margin: 1em 0;
+  padding: 0 0 0 1em;
+  border-left: 3px solid var(--k-border);
+  color: var(--k-secondary);
+}
+
+.document blockquote > *:first-child {
+  margin-top: 0;
+}
+
+.document blockquote > *:last-child {
+  margin-bottom: 0;
+}
+
+/* ------------------------------------------------------------------- links */
+
+.document a {
+  color: var(--k-doc-link);
+  /* Always underlined so links never rely on colour alone. */
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--k-doc-link) 45%, transparent);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+  transition: text-decoration-color var(--k-duration-fast) ease;
+}
+
+.document a:hover,
+.document a:focus-visible {
+  text-decoration-color: var(--k-doc-link);
+  text-decoration-thickness: 2px;
+}
+
+.document .footnotes {
+  margin-top: 2.5em;
+  padding-top: 1em;
+  border-top: 1px solid var(--k-border);
+  font-size: 0.875em;
+  color: var(--k-secondary);
+}
+
+.document .footnotes ol {
+  padding-left: 1.25em;
+}
+
+.document sup a {
+  text-decoration: none;
+  font-weight: 600;
+}
+
+/*
+ * A link whose destination the policy refused. The text survives so the reader
+ * can see what the document claimed, but it is muted and dotted-underlined so it
+ * never reads as a live destination.
+ */
+.md-link-blocked {
+  /* Reset back to body text: this is a button only so it is reachable by
+     keyboard and can explain itself when activated. */
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--k-muted);
+  text-decoration: underline dotted;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+  cursor: help;
+}
+
+.md-link-blocked:hover,
+.md-link-blocked:focus-visible {
+  color: var(--k-text);
+  text-decoration-style: solid;
+}
+
+/* An empty document is a normal state, not an error. */
+.document-empty {
+  margin: 0;
+  color: var(--k-muted);
+  font-style: italic;
+}
+
+/* ----------------------------------------------------------------- rules */
+
+.document hr {
+  margin: 2em 0;
+  border: 0;
+  border-top: 1px solid var(--k-border);
+}
+
+/* ---------------------------------------------------------------- images */
+
+.document img {
+  max-width: 100%;
+  height: auto;
+  vertical-align: middle;
+  border-radius: 4px;
+}
+
+.md-image {
+  display: inline-block;
+  max-width: 100%;
+}
+
+.md-image-placeholder {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5em;
+  max-width: 100%;
+  padding: 0.45em 0.7em;
+  border: 1px dashed var(--k-border);
+  border-radius: 6px;
+  background: var(--k-surface-sunken);
+  color: var(--k-muted);
+  font-size: 0.8125em;
+  line-height: 1.4;
+}
+
+.md-image-placeholder[data-state="blocked"] {
+  border-style: solid;
+  border-color: var(--k-notice-border);
+  background: var(--k-notice-surface);
+  color: var(--k-warning);
+}
+
+/* Alt text is what the reader should see in place of a missing image. */
+.md-image-placeholder-text {
+  overflow-wrap: anywhere;
+}
+
+/* ------------------------------------------------------------------ tables */
+
+.document .table-scroll {
+  margin: 1.5em 0;
+  overflow-x: auto;
+}
+
+.document table {
+  width: max-content;
+  min-width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9375em;
+}
+
+.document th,
+.document td {
+  padding: 0.5em 0.75em;
+  border: 1px solid var(--k-border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.document thead th {
+  background: var(--k-table-header);
+  font-weight: 600;
+}
+
+.document tbody tr:nth-child(even) {
+  background: var(--k-table-stripe);
+}
+
+/* ------------------------------------------------------------------- code */
+
+.document code {
+  font-family: var(--k-font-code);
+  font-size: 0.8125em; /* 13 px at 100 % */
+  color: var(--k-inline-code-text);
+  padding: 0.15em 0.35em;
+  border: 1px solid var(--k-code-border);
+  border-radius: 4px;
+  background: var(--k-inline-code-surface);
+  overflow-wrap: normal;
+}
+
+.code-block {
+  margin: 1.5em 0;
+  border: 1px solid var(--k-code-border);
+  border-radius: 8px;
+  background: var(--k-code-surface);
+  overflow: hidden;
+}
+
+.code-block-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5em;
+  padding: 0.3em 0.3em 0.3em 0.75em;
+  border-bottom: 1px solid var(--k-code-border);
+  background: var(--k-code-header);
+}
+
+.code-block-language {
+  color: var(--k-muted);
+  font-family: var(--k-font-code);
+  font-size: 0.6875em;
+  letter-spacing: 0.02em;
+  text-transform: lowercase;
+}
+
+.code-copy {
+  height: 26px;
+  min-width: 26px;
+  padding: 0 0.5em;
+  gap: 0.35em;
+  border-radius: 6px;
+  font-size: 0.6875em;
+  color: var(--k-secondary);
+}
+
+.code-copy[data-copied="true"] {
+  color: var(--k-primary);
+}
+
+.code-block pre {
+  margin: 0;
+  padding: 0.75em 0.875em;
+  overflow-x: auto;
+  background: transparent;
+  font-variant-ligatures: none;
+}
+
+.code-block code {
+  display: block;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-family: var(--k-font-code);
+  font-size: 0.8125em;
+  line-height: 1.538;
+  white-space: pre;
+  overflow-wrap: normal;
+}
+
+.code-line {
+  display: block;
+}
+
+.code-line-empty::after {
+  content: " ";
+}
+
+/* Unhighlighted fallback for oversized or unknown-language blocks. */
+.code-block[data-plain="true"] code {
+  color: var(--k-document-text);
+}
+
+/* -------------------------------------------------------- search highlights */
+
+/* The active match is outlined as well as filled, so it is never identified by
+   colour alone. */
+::highlight(k-search-match) {
+  background-color: var(--k-search-match);
+  color: inherit;
+}
+
+::highlight(k-search-active) {
+  background-color: var(--k-search-active);
+  color: var(--k-search-active-text);
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+}

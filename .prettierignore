@@ -1,0 +1,12 @@
+# Authored specification set: prose and tables that a formatter would rewrap
+# without adding information. Reviewed by hand instead.
+docs/
+
+# Build output and generated measurement dumps from the ui-designs mockups.
+node_modules/
+dist/
+coverage/
+src-tauri/target/
+src-tauri/gen/
+tools/analysis.txt
+tools/controls.txt
