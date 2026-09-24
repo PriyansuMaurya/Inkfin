@@ -1,7 +1,7 @@
 {
   "name": "inkfin",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "description": "Local Windows Markdown file viewer with live preview.",
   "scripts": {

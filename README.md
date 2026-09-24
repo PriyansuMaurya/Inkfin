@@ -10,7 +10,7 @@ Inkfin is a small, local Markdown viewer for Windows. Double-click a `.md` or `.
 
 ## Install
 
-Download `Inkfin_0.1.0_x64-setup.exe` from the [latest release](https://github.com/PriyansuMaurya/Inkfin/releases/latest) and run it. The installer registers `.md` and `.markdown` file associations, so you can open files from Explorer with a double-click or **Open With**.
+Download the `Inkfin_<version>_x64-setup.exe` installer from the [latest release](https://github.com/PriyansuMaurya/Inkfin/releases/latest) and run it. The installer registers `.md` and `.markdown` file associations, so you can open files from Explorer with a double-click or **Open With**.
 
 > The installer is not code-signed yet, so Windows SmartScreen may warn on first run — choose **More info → Run anyway**.
 

@@ -1,6 +1,6 @@
 [package]
 name = "inkfin"
-version = "0.1.0"
+version = "0.1.1"
 description = "Local Markdown file viewer with live preview"
 authors = ["Markdown Preview"]
 edition = "2021"
