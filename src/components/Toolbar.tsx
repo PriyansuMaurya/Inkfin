@@ -2,7 +2,7 @@
  * The single row of controls above the document.
  *
  * Layout follows the design contract: the filename on the left, then the quiet
- * actions, with zoom and theme grouped at the right. The window chrome itself
+ * actions, with search, zoom and theme grouped at the right. The window chrome itself
  * stays native, so there is no title bar to reproduce here. At narrow widths the
  * textual labels drop away but no action ever disappears.
  */
@@ -91,20 +91,23 @@ export function Toolbar({
             <RotateCw size={16} aria-hidden="true" />
           </button>
 
-          <button
-            type="button"
-            className="btn btn-icon"
-            onClick={onSearch}
-            aria-pressed={searchOpen}
-            title="Find in document (Ctrl+F)"
-            aria-label="Find in document"
-          >
-            <Search size={16} aria-hidden="true" />
-          </button>
         </>
       )}
 
       <span className="toolbar-spacer" />
+
+      {hasDocument && (
+        <button
+          type="button"
+          className="btn btn-icon"
+          onClick={onSearch}
+          aria-pressed={searchOpen}
+          title="Find in document (Ctrl+F)"
+          aria-label="Find in document"
+        >
+          <Search size={16} aria-hidden="true" />
+        </button>
+      )}
 
       <div className="zoom-group" role="group" aria-label="Document zoom">
         <button
