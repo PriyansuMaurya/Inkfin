@@ -4,7 +4,7 @@
  * Markdown is rendered with `react-markdown` and `remark-gfm`, which produce a
  * React element tree rather than an HTML string. Raw HTML in the source is never
  * parsed as HTML, `rehype-raw` is not used, and every attribute that reaches the
- * DOM is produced by a React element here — so no Markdown file can inject
+ * DOM is produced by a React element here, so no Markdown file can inject
  * markup, a script or an event handler.
  *
  * A module-level context supplies the renderers instead of a `components` object

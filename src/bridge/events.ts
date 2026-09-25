@@ -2,7 +2,7 @@
  * Native event subscriptions.
  *
  * Every payload is validated before use. Events only ever carry identity
- * information (a generation, a path, a revision) — never file content, which is
+ * information (a generation, a path, a revision), never file content, which is
  * requested explicitly through a command so it can be validated on the way in.
  */
 

@@ -5,8 +5,8 @@
  * match survive an automatic refresh, a theme change and a zoom change.
  *
  * One effect does all of the work in a single pass: read the visible text, find
- * the matches, paint the ranges, and — only when the reader asked — reveal the
- * active one. A single pass is what makes asynchronous syntax highlighting safe.
+ * the matches, paint the ranges, and reveal the active one only when the reader
+ * asked for it. A single pass is what makes asynchronous syntax highlighting safe.
  * `CodeBlock` starts plain and swaps in token spans a tick later, so ranges must
  * be derived from the DOM as it is now rather than from an earlier snapshot.
  * Splitting this into "find matches" then "paint them" would also make the

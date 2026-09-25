@@ -1,4 +1,4 @@
-# Markdown Preview — Project Memory and Handoff
+# Markdown Preview - Project Memory and Handoff
 
 **Last updated:** 24 September 2026 · **Status:** Implemented; Windows installer built; release gates not yet executed in an installed build.
 
@@ -23,10 +23,10 @@ Product: Windows-first local Markdown file viewer. Main workflow: open one `.md`
 | Deviation | Reason |
 | --- | --- |
 | Two watcher events, `document_unavailable` and `document_missing`, are emitted in addition to the single `document_missing` named in ARCHITECTURE.md. | "Currently unreadable" (transient, preview preserved) and "deleted" are different reader situations needing different copy. |
-| `bundle.windows.webviewInstallMode` set to `embedBootstrapper`. | PRD gate 6 asks for an offline install; the default `downloadBootstrapper` fetches on install. Note this embeds the *bootstrapper*, which still reaches the network if WebView2 is absent — on Windows 10/11 the runtime ships with the OS. |
+| `bundle.windows.webviewInstallMode` set to `embedBootstrapper`. | PRD gate 6 asks for an offline install; the default `downloadBootstrapper` fetches on install. Note this embeds the *bootstrapper*, which still reaches the network if WebView2 is absent; on Windows 10/11 the runtime ships with the OS. |
 | Colour tokens were extended with derived `--k-*` surface tokens beyond the literal values in DESIGN.md. | DESIGN.md does not list every hover/pressed/border surface the mockups show; the derived tokens keep the palette consistent instead of scattering ad-hoc hex values. |
 | Preferences use the Tauri store plugin rather than an ARCHITECTURE-proposed `services/preferences.rs`. | Removes a hand-rolled JSON file plus its corrupt-file recovery path; stored values are still validated on read, and invalid ones fall back to defaults. |
-| One `fileAssociations` entry with `"ext": ["md", "markdown"]` rather than two entries. | Two entries shared a ProgID name, which the NSIS template dedupes — `.markdown` could end up unregistered. Release gate 1 still needs an installed-build check. |
+| One `fileAssociations` entry with `"ext": ["md", "markdown"]` rather than two entries. | Two entries shared a ProgID name, which the NSIS template dedupes, so `.markdown` could end up unregistered. Release gate 1 still needs an installed-build check. |
 | `tools/dev-setup/` holds the Rust/VS Build Tools bootstrap scripts; throwaway reverse-engineering scripts were removed. | They are environment setup, not product code, and the removed scripts had hardcoded absolute paths. `tools/analysis.txt` and `tools/controls.txt` remain as the measurement record behind the DESIGN.md numbers, but their generator scripts are gone. |
 
 ## Current status
@@ -49,7 +49,7 @@ Product: Windows-first local Markdown file viewer. Main workflow: open one `.md`
 - Release gate 1: are both `.md` and `.markdown` actually registered by the built installer, and does a second launch replace the open document rather than silently dropping the path?
 - Release gate 3: does search, zoom and keyboard navigation hold at the 480 × 360 minimum window size in the packaged build?
 - Release gate 4: do ordinary and atomic saves refresh in the packaged build without resetting the reader to the top?
-- Release gate 6: what exactly does "works offline" mean given `embedBootstrapper` — verify on a machine without WebView2, or narrow the claim.
+- Release gate 6: what exactly does "works offline" mean given `embedBootstrapper`: verify on a machine without WebView2, or narrow the claim.
 - Installer signing: the NSIS package is unsigned, so SmartScreen is expected to warn on first run (More info → Run anyway). Signing is post-MVP, but the warning is the first thing a new user meets.
 - Performance targets (start under 1 s, save response under 500 ms) are unmeasured on the packaged build.
 
@@ -59,7 +59,7 @@ Product: Windows-first local Markdown file viewer. Main workflow: open one `.md`
 | 2026-09-23 | Initial spec set | Defined MVP and boundaries | PRD.md–TASK.md | Project owner |
 | 2026-09-24 | Implementation, tests, icon set and NSIS installer | Deliver the seven MVP features and an installable package | TASK.md evidence key; `INSTALLER` artifact paths above | Project owner |
 
-## Future AI handoff — fill in at the end of each work session
+## Future AI handoff - fill in at the end of each work session
 - Branch / commit / build ID: no VCS repository initialised in this directory; build ID is the NSIS installer above, app version 0.1.0.
 - Completed TASK.md items and evidence: see `docs/TASK.md`; every checked box names its evidence key (`STATIC`, `FE-TESTS`, `RUST-TESTS`, `INSTALLER`).
 - Files modified: `src/` (renderer, styles, features, tests), `src-tauri/src/` (commands, services, state, errors), `src-tauri/{tauri.conf.json,capabilities/default.json,Cargo.toml}`, `src-tauri/icons/`, `tests/`, `vite.config.ts`, `vitest.setup.ts`, `eslint.config.js`, `.prettierrc.json` (new), `.prettierignore` (new), `tools/make-icons.py`, `tools/dev-setup/{build.ps1 (new),install-rust.sh,install-vsbuildtools.ps1}`, `tools/{analysis.txt,controls.txt}`, `docs/{TASK.md,MEMORY.md}`, `index.html`.

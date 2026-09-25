@@ -1,4 +1,4 @@
-# Markdown Preview — Product Requirements Document
+# Markdown Preview - Product Requirements Document
 
 **Status:** Proposed MVP specification · **Platform:** Windows desktop first · **Date:** 23 September 2026
 

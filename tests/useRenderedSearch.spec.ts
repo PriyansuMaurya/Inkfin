@@ -5,8 +5,8 @@
  *
  *  - a deliberate move (typing, Enter, opening another file) must actually show
  *    the reader where the match is;
- *  - re-deriving the index — an automatic refresh, a theme change, a code block
- *    finishing highlighting — must never move the page under them.
+ *  - re-deriving the index, whether from an automatic refresh, a theme change or
+ *    a code block finishing highlighting, must never move the page under them.
  *
  * These are asserted through `scrollIntoView`, which is the only thing the hook
  * does that a reader can see move.

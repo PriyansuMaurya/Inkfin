@@ -3,7 +3,7 @@
  *
  * Search reads the *rendered* DOM rather than the Markdown source: a reader
  * looks for words they can see, and a match must never be reported for text that
- * is not on screen. Nothing here mutates the document — matches are handed to
+ * is not on screen. Nothing here mutates the document; matches are handed to
  * the CSS Custom Highlight API as ranges, so selections, copy and the rendered
  * tree are all left untouched.
  *

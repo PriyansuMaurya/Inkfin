@@ -81,7 +81,7 @@ export function App() {
   // The filename is the only thing distinguishing two open windows, so it is
   // mirrored into the native title bar rather than only drawn in the toolbar.
   useEffect(() => {
-    const title = document ? `${document.name} — Inkfin` : 'Inkfin';
+    const title = document ? `${document.name} - Inkfin` : 'Inkfin';
     void getCurrentWindow()
       .setTitle(title)
       .catch(() => {

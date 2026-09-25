@@ -1,8 +1,8 @@
 /**
  * Brief inline notice beneath the toolbar.
  *
- * Notices report routine, recoverable problems — a missing file, a blocked
- * image, a dropped bundle — without a modal and without displacing the document.
+ * Notices report routine, recoverable problems (a missing file, a blocked
+ * image, a dropped bundle) without a modal and without displacing the document.
  * They are announced politely so a screen reader hears them once, and they never
  * carry raw OS text.
  */

@@ -2,7 +2,7 @@
 
 **Read local Markdown files as a polished document.**
 
-Inkfin is a small, local Markdown viewer for Windows. Double-click a `.md` or `.markdown` file — or drop one into the window — and read it as a GitHub Flavoured Markdown document with syntax highlighting, themes, search, zoom and live reload when the file changes on disk.
+Inkfin is a small, local Markdown viewer for Windows. Double-click a `.md` or `.markdown` file (or drop one into the window) and read it as a GitHub Flavoured Markdown document with syntax highlighting, themes, search, zoom and live reload when the file changes on disk.
 
 - **Read-only.** Nothing is ever written back to your documents.
 - **Offline.** No network requests, accounts, analytics or telemetry. Remote images are blocked.
@@ -12,7 +12,7 @@ Inkfin is a small, local Markdown viewer for Windows. Double-click a `.md` or `.
 
 Download the `Inkfin_<version>_x64-setup.exe` installer from the [latest release](https://github.com/PriyansuMaurya/Inkfin/releases/latest) and run it. The installer registers `.md` and `.markdown` file associations, so you can open files from Explorer with a double-click or **Open With**.
 
-> The installer is not code-signed yet, so Windows SmartScreen may warn on first run — choose **More info → Run anyway**.
+> The installer is not code-signed yet, so Windows SmartScreen may warn on first run; choose **More info → Run anyway**.
 
 ## Features
 
@@ -22,7 +22,7 @@ Download the `Inkfin_<version>_x64-setup.exe` installer from the [latest release
 - **Find in document** with match count, active result tracking and keyboard navigation
 - **Zoom** from 75% to 200%, persisted between sessions
 - **Live reload** when another app saves the file, preserving your reading position and search query
-- **Large files welcome** — documents up to 10 MiB open without freezing the UI
+- **Large files welcome**: documents up to 10 MiB open without freezing the UI
 - **Light / Dark / System** theme, persisted locally
 
 ## Keyboard shortcuts
@@ -103,10 +103,10 @@ tools/               icon generation and dev setup scripts
 
 ## Documentation
 
-- [PRD](docs/PRD.md) — product requirements and MVP scope
-- [Architecture](docs/ARCHITECTURE.md) — stack, IPC contract and security decisions
-- [Design](docs/DESIGN.md) — visual system and tokens
-- [Rules](docs/RULES.md) — coding and contribution guidelines
+- [PRD](docs/PRD.md): product requirements and MVP scope
+- [Architecture](docs/ARCHITECTURE.md): stack, IPC contract and security decisions
+- [Design](docs/DESIGN.md): visual system and tokens
+- [Rules](docs/RULES.md): coding and contribution guidelines
 
 ## License
 

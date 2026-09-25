@@ -1,4 +1,4 @@
-# Markdown Preview — AI and Coding Rules
+# Markdown Preview - AI and Coding Rules
 
 These rules apply to human and AI contributions. Read PRD.md and ARCHITECTURE.md before changing behaviour; use TASK.md for current work and update MEMORY.md after material decisions. The seven MVP features and explicit exclusions are the source of truth.
 

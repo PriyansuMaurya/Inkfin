@@ -66,8 +66,8 @@ globalWithCss.CSS = { highlights: new HighlightRegistryStub() };
 
 /**
  * jsdom performs no layout and does not implement scrolling. A no-op stub keeps
- * `scrollIntoView` callable so tests can assert *what was revealed* — the
- * behaviour they actually care about — instead of a pixel offset.
+ * `scrollIntoView` callable so tests can assert *what was revealed* (the
+ * behaviour they actually care about) instead of a pixel offset.
  */
 if (typeof Element.prototype.scrollIntoView !== 'function') {
   Element.prototype.scrollIntoView = () => {};

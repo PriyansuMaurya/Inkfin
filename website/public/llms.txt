@@ -1,6 +1,6 @@
 # Inkfin
 
-> Inkfin is a free, private, read-only Markdown viewer for Windows 10 and 11 (64-bit). It renders GitHub Flavoured Markdown locally with search, themes, syntax highlighting, zoom and automatic refresh — with no accounts, analytics, telemetry or network requests.
+> Inkfin is a free, private, read-only Markdown viewer for Windows 10 and 11 (64-bit). It renders GitHub Flavoured Markdown locally with search, themes, syntax highlighting, zoom and automatic refresh, with no accounts, analytics, telemetry or network requests.
 
 Inkfin is a desktop application, not a web service. Current version 0.1.1; installer 3.5 MB; price $0. Documents are opened and rendered on the user's own machine: remote images are blocked, raw HTML is not executed, and files are never modified.
 
@@ -30,4 +30,4 @@ Inkfin is a desktop application, not a web service. Current version 0.1.1; insta
 
 - Supported systems: 64-bit Windows 10 and Windows 11; the installer includes the WebView2 bootstrapper
 - Offline use: works fully without internet; remote images are intentionally blocked
-- SmartScreen warning: the current installer is not code-signed — choose "More info" then "Run anyway" to run it
+- SmartScreen warning: the current installer is not code-signed; choose "More info" then "Run anyway" to run it

@@ -1,4 +1,4 @@
-# Markdown Preview — Visual System
+# Markdown Preview - Visual System
 
 **Direction:** Minimal native-feeling document preview. Content carries the hierarchy; controls are quiet and always discoverable. Windows system window chrome remains native in the MVP.
 

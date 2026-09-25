@@ -1,4 +1,4 @@
-# Markdown Preview — Technical Architecture
+# Markdown Preview - Technical Architecture
 
 **Status:** Proposed implementation blueprint. Lock exact dependency versions when scaffolding and record them in the lockfile.
 
