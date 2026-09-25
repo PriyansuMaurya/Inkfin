@@ -1,0 +1,33 @@
+# Inkfin
+
+> Inkfin is a free, private, read-only Markdown viewer for Windows 10 and 11 (64-bit). It renders GitHub Flavoured Markdown locally with search, themes, syntax highlighting, zoom and automatic refresh — with no accounts, analytics, telemetry or network requests.
+
+Inkfin is a desktop application, not a web service. Current version 0.1.1; installer 3.5 MB; price $0. Documents are opened and rendered on the user's own machine: remote images are blocked, raw HTML is not executed, and files are never modified.
+
+## Key pages
+
+- [Home](https://inkfin.maurya.ie/): Product overview, features, privacy details and FAQ
+- [GitHub repository](https://github.com/PriyansuMaurya/Inkfin): Source code, issues and documentation
+- [Releases](https://github.com/PriyansuMaurya/Inkfin/releases): All versions and download files
+- [v0.1.1 release notes](https://github.com/PriyansuMaurya/Inkfin/releases/tag/v0.1.1): Changes in the current version
+- [Download installer](https://github.com/PriyansuMaurya/Inkfin/releases/download/v0.1.1/Inkfin_0.1.1_x64-setup.exe): `Inkfin_0.1.1_x64-setup.exe` for 64-bit Windows 10 and Windows 11
+
+## Features
+
+- Open `.md` and `.markdown` files via toolbar, drag-and-drop, or Windows Explorer
+- GitHub Flavoured Markdown with syntax highlighting, tables and code blocks
+- Light, dark and system themes; document and syntax colours update together
+- Page zoom from 75% to 200%, preference stored locally
+- Search within documents; the file auto-reloads on save while preserving scroll position and query
+
+## Privacy
+
+- No accounts or sign-in; preferences stay on the local machine
+- Zero network requests: rendering, highlighting, search and refresh all run locally
+- Read-only: Inkfin never writes back to your Markdown documents
+
+## FAQ
+
+- Supported systems: 64-bit Windows 10 and Windows 11; the installer includes the WebView2 bootstrapper
+- Offline use: works fully without internet; remote images are intentionally blocked
+- SmartScreen warning: the current installer is not code-signed — choose "More info" then "Run anyway" to run it
