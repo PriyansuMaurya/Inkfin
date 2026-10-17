@@ -115,22 +115,57 @@ cp -R "$VOLUME_APP" "$APP_PATH"
 xattr -dr com.apple.quarantine "$APP_PATH" 2>/dev/null || true
 record installed pass "copied to $APP_PATH"
 
+running() { pgrep -if "$APP_NAME" >/dev/null 2>&1; }
+
 if open -a "$APP_PATH" --args --inkfin-acceptance >"$WORK/open.log" 2>&1; then
   sleep 6
-  if pgrep -x "$APP_NAME" >/dev/null; then
+  if running; then
     record firstLaunch pass "the app is running after six seconds"
   else
+    # Capture why before deciding anything: a launch that exits in a headless CI
+    # session and a launch that exits for a real reason look identical from here.
+    diagnostics="$WORK/diagnostics"
+    mkdir -p "$diagnostics"
+    {
+      echo "open -a exit status: 0"
+      echo "--- ps (any case, any owner) ---"
+      ps -axo pid,comm,args | grep -i "$APP_NAME" || echo "no matching process"
+      echo "--- direct launch of the bundle executable ---"
+      "$APP_PATH/Contents/MacOS/$APP_NAME" --inkfin-acceptance >"$diagnostics/direct.log" 2>&1 &
+      direct_pid=$!
+      sleep 5
+      if kill -0 "$direct_pid" 2>/dev/null; then
+        echo "still running after 5 s (pid $direct_pid)"
+        kill "$direct_pid" 2>/dev/null || true
+      else
+        wait "$direct_pid" 2>/dev/null || true
+        echo "exited; output follows"
+      fi
+      cat "$diagnostics/direct.log"
+      echo "--- bundle ---"
+      ls -la "$APP_PATH/Contents/MacOS/"
+      echo "--- link/codesign details ---"
+      codesign -dvvv "$APP_PATH" 2>&1 | head -20
+      codesign -d --entitlements - "$APP_PATH" 2>&1 | head -20
+      echo "--- xattr ---"
+      xattr -l "$APP_PATH" 2>/dev/null || echo "none"
+      echo "--- unified log ---"
+      log show --style compact --last 3m --predicate "process == \"$APP_NAME\" OR eventMessage CONTAINS \"$APP_NAME\"" 2>/dev/null | tail -30
+    } >"$diagnostics/summary.txt" 2>&1
+    sed -n '1,60p' "$diagnostics/summary.txt"
+    note diagnostics "a first launch that exits: see the note below"
     fail "the app exited during its first launch"
+    note firstLaunchLog "$(tr '\n' ' ' <"$diagnostics/summary.txt" | cut -c1-900)"
   fi
 else
   fail "open -a refused the app: $(cat "$WORK/open.log")"
 fi
 
-if pgrep -x "$APP_NAME" >/dev/null; then
-  BEFORE=$(pgrep -x "$APP_NAME" | wc -l | tr -d ' ')
+if running; then
+  BEFORE=$(pgrep -if "$APP_NAME" | wc -l | tr -d ' ')
   open -a "$APP_PATH" "$FIXTURE" >/dev/null 2>&1 || open "$FIXTURE" >/dev/null 2>&1 || true
   sleep 6
-  AFTER=$(pgrep -x "$APP_NAME" | wc -l | tr -d ' ')
+  AFTER=$(pgrep -if "$APP_NAME" | wc -l | tr -d ' ')
   if [[ "$AFTER" == "$BEFORE" ]]; then
     record singleInstance pass "$BEFORE process before, $AFTER after opening a document"
   else
@@ -155,7 +190,7 @@ fi
 
 quit_app
 sleep 2
-if pgrep -x "$APP_NAME" >/dev/null; then
+if running; then
   fail "the app did not quit when asked"
 else
   record quit pass "the app quit and left no process"

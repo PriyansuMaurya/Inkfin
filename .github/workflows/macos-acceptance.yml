@@ -14,6 +14,11 @@ name: macOS acceptance
 
 on:
   workflow_dispatch:
+    inputs:
+      build_run_id:
+        description: 'Run id whose macos-dmg artifact to test (skips the rebuild)'
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -21,6 +26,7 @@ permissions:
 jobs:
   build:
     name: Build the universal DMG
+    if: ${{ inputs.build_run_id == '' }}
     runs-on: macos-14
     steps:
       - uses: actions/checkout@v4
@@ -53,6 +59,9 @@ jobs:
   acceptance:
     name: Acceptance on ${{ matrix.runner }}
     needs: build
+    # Either the build job just produced the DMG, or an earlier run's artifact is
+    # being re-tested while the script itself is being fixed.
+    if: ${{ always() && !cancelled() && (inputs.build_run_id != '' || needs.build.result == 'success') }}
     strategy:
       fail-fast: false
       matrix:
@@ -69,6 +78,8 @@ jobs:
         with:
           name: macos-dmg
           path: artifacts/macos
+          run-id: ${{ inputs.build_run_id || github.run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Run the acceptance checks
         run: |
