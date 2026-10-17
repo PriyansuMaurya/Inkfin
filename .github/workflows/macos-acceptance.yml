@@ -1,0 +1,84 @@
+name: macOS acceptance
+
+# Runs the automatable macOS rows on real Macs: the DMG mounts, the bundle is a
+# universal binary, first launch survives, opening a document takes over the
+# running instance instead of starting a second one, and nothing crashes.
+#
+# This workflow never publishes anything. It exists so docs/TEST-MATRIX.md can
+# report Mac results from an actual run instead of an assumption, and the pointer,
+# keyboard and screen-reader rows still need a person at the machine
+# (docs/MACOS-ACCEPTANCE-RUN.md).
+#
+# Dispatch it by hand:
+#   gh workflow run macos-acceptance.yml
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build the universal DMG
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build the unsigned universal DMG
+        run: npx tauri build --target universal-apple-darwin --no-sign
+
+      - name: Show what was produced
+        run: |
+          ls -la src-tauri/target/universal-apple-darwin/release/bundle/dmg/
+          shasum -a 256 src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-dmg
+          path: src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
+
+  acceptance:
+    name: Acceptance on ${{ matrix.runner }}
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        # macos-14 is Apple silicon. macos-15-intel is the remaining Intel
+        # image; if it is gone, that leg fails and the Intel rows stay
+        # unverified rather than being reported as passing.
+        runner: [macos-14, macos-15-intel]
+    runs-on: ${{ matrix.runner }}
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: macos-dmg
+          path: artifacts/macos
+
+      - name: Run the acceptance checks
+        run: |
+          brew list jq >/dev/null 2>&1 || brew install jq
+          chmod +x tools/macos/acceptance.sh
+          tools/macos/acceptance.sh "$(ls artifacts/macos/*.dmg | head -1)" "artifacts/macos/acceptance-${{ matrix.runner }}.json"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: macos-acceptance-${{ matrix.runner }}
+          path: artifacts/macos/
+          if-no-files-found: warn

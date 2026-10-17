@@ -43,12 +43,7 @@
     "shortDescription": "Read local Markdown files as a polished document.",
     "longDescription": "Inkfin opens a single local .md or .markdown file and renders it as a GitHub Flavoured Markdown document, with syntax highlighting, themes, visible text search, document zoom and automatic refresh when the file changes on disk. Read-only: nothing is written to your documents and no network requests are made.",
     "copyright": "Inkfin",
-    "icon": [
-      "icons/32x32.png",
-      "icons/128x128.png",
-      "icons/128x128@2x.png",
-      "icons/icon.ico"
-    ],
+    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.ico"],
     "fileAssociations": [
       {
         "ext": ["md", "markdown"],
@@ -67,7 +62,8 @@
       "nsis": {
         "installMode": "currentUser",
         "installerIcon": "icons/icon.ico",
-        "displayLanguageSelector": false
+        "displayLanguageSelector": false,
+        "installerHooks": "nsis-hooks.nsh"
       }
     }
   }

@@ -10,3 +10,7 @@ src-tauri/target/
 src-tauri/gen/
 tools/analysis.txt
 tools/controls.txt
+
+# NSIS installer script: no formatter understands it, and it is compiled by
+# makensis rather than read by tooling.
+src-tauri/*.nsh
