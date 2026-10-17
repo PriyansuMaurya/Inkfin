@@ -21,9 +21,11 @@ a person can check:
 - The Windows gates are `PARTIAL` (GATE-W1–W6, H6, H7): verified end to end on
   this Windows 11 host, but that host is not a clean machine, so a disposable
   image remains outstanding.
-- macOS row coverage is `PARTIAL` (GATE-M3): a runner is a real Mac but headless.
-  Finder double-click, drag and drop, TCC folders, screen-reader output and the
-  480 × 360 pointer rows still need a person at a Mac.
+- macOS row coverage is `PARTIAL` (GATE-M3): a runner is a real Mac but headless,
+  so the install, launch, Finder open path, cold start, one shortcut and both
+  architectures are decided, while rendering, drag and drop, an external save
+  refreshing the preview, TCC folders, screen-reader output and the 480 × 360
+  pointer rows still need a person at a Mac.
 
 Two real defects were found by driving the packaged product and fixed during this
 audit; both fixes are verified, the second in a fresh package (§7).
@@ -137,23 +139,27 @@ driving `tools/macos/acceptance.sh` against the universal DMG built from commit
 | Matrix | Check | Result on all three Macs |
 | --- | --- | --- |
 | H6, GATE-M1 | `hdiutil attach` of the DMG, then `Inkfin.app` inside it | mounted; app bundle present |
-| H2, K2 | `lipo -archs` of the installed executable | `x86_64 arm64` — one genuine universal binary |
+| H2, K2 | `lipo -archs` of the installed executable | `x86_64 arm64` — one genuine universal binary, and the Intel host ran it natively |
 | H7 | `CFBundleDocumentTypes` in the installed `Info.plist` | declares both `md` and `markdown` |
 | H6 | `cp -R` to `/Applications` | copied, 9.4 MB installed |
 | GATE-M1, K1–K3 | `open -a` and a liveness check six seconds later | **the app is running** on Apple silicon and on Intel |
 | A5 | `open -a Inkfin fixture.md` while the app was running | process count 1 → 1 — the running instance took the document |
 | A4, B4–B6 | window title after the document was opened | `fixture.md - Inkfin` on every Mac: the fixture was read and applied |
+| A4 | `open fixture.md` with **no application named** — the LaunchServices decision a Finder double-click makes — with the app quit first | the app came up and took the document |
+| A6 | the same step read as a cold start: the file URL arrives before the window exists | the window title became `fixture.md - Inkfin` on every Mac |
+| C7 | ⌘F sent through System Events, then the focused element read from the accessibility API | `AXTextField` on macOS 14.8.9 and 15.7.9; the read itself was refused on 26.6.2, so that host is unverified for this row instead of passing |
 | H6 | `~/Library/Logs/DiagnosticReports` | no crash reports |
 | H6 | `osascript` quit | the app quit and left no process |
 | H5 | `codesign -dv` / `spctl -a -t execute` | arm64 slices carry only an ad-hoc linker signature, the Intel slice none, and Gatekeeper **rejects** the bundle (`source=no usable signature`) — the expected unsigned state |
 
-What this does **not** cover: a runner is headless, so nothing was seen on screen;
+What this does **not** cover: a runner is headless, so nothing was seen on screen.
 WKWebView's DOM cannot be inspected the way the Windows webview can, so macOS
-rendering is inferred from the document being applied (the window title only
-changes after that) rather than observed; LaunchServices dispatch was app-directed
-(`open -a`) rather than a Finder double-click as the default handler; and drag and
-drop, TCC-protected folders, the pointer rows and spoken screen-reader output were
-not exercised at all. Those stay in [MACOS-ACCEPTANCE-RUN.md](MACOS-ACCEPTANCE-RUN.md).
+rendering is inferred from the document being applied — the file read, the layout,
+the relative image and link handling are `UNVERIFIED` on macOS, not `PASS`.
+Dragging a file onto the window, an external save refreshing the preview, the
+TCC-protected folders, Gatekeeper with a person clicking through it, the pointer
+rows and spoken screen-reader output were not exercised at all. Those stay in
+[MACOS-ACCEPTANCE-RUN.md](MACOS-ACCEPTANCE-RUN.md).
 
 The first attempt (run 39047992157) reported "the app exited during its first
 launch" on both architectures. That was this script's fault, not the app's: the
