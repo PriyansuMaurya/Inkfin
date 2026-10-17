@@ -1,0 +1,258 @@
+name: Build macOS app and dmg
+
+# Builds one universal .app and .dmg on an Apple silicon runner, so the same
+# download runs natively on Apple silicon and Intel.
+#
+# Nothing here runs on Windows, and the Windows release workflow is unchanged.
+# Distribution status is decided by which secrets exist, never assumed:
+#   signed + notarised  -> release-quality artifact
+#   signed, no Apple ID -> signed but un-notarised (Gatekeeper will warn)
+#   no certificate      -> unsigned test bundle, explicitly labelled
+# The last two never claim to be a public release.
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: macos-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-macos-universal:
+    # Apple silicon runner: both slices are cross-compiled from here, so an
+    # Intel runner is not needed for a universal build.
+    runs-on: macos-15
+
+    env:
+      # Signing certificate (base64 .p12) and its export password.
+      APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+      APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+      APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+      # Password for the throwaway keychain created in this job.
+      MACOS_KEYCHAIN_PASSWORD: ${{ secrets.MACOS_KEYCHAIN_PASSWORD }}
+      # Notarisation: either the Apple ID trio or the App Store Connect key pair.
+      APPLE_ID: ${{ secrets.APPLE_ID }}
+      APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+      APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+      # Contents of the AuthKey_<KEYID>.p8 file, if the API-key route is used.
+      APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install both macOS Rust targets
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          prefix-key: inkfin-macos-v1
+          key: universal
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      # Decides what kind of artifact this run can produce. Kept in one place so
+      # the build, the verification steps and the artifact names cannot disagree.
+      - name: Decide distribution status
+        run: |
+          set -euo pipefail
+          SIGNED=false
+          if [ -n "${APPLE_CERTIFICATE:-}" ]; then
+            SIGNED=true
+          fi
+          echo "SIGNED=$SIGNED" >> "$GITHUB_ENV"
+
+          NOTARIZED=false
+          if [ "${SIGNED}" = "true" ]; then
+            if [ -n "${APPLE_API_KEY:-}" ] && [ -n "${APPLE_API_ISSUER:-}" ]; then
+              NOTARIZED=true
+            elif [ -n "${APPLE_ID:-}" ] && [ -n "${APPLE_PASSWORD:-}" ] && [ -n "${APPLE_TEAM_ID:-}" ]; then
+              NOTARIZED=true
+            fi
+          fi
+          echo "NOTARIZED=${NOTARIZED}" >> "$GITHUB_ENV"
+
+          if [ "${NOTARIZED}" = "true" ]; then
+            DISTRIBUTION=release
+          elif [ "${SIGNED}" = "true" ]; then
+            DISTRIBUTION=signed-unnotarized
+          else
+            DISTRIBUTION=unsigned
+          fi
+          echo "DISTRIBUTION=${DISTRIBUTION}" >> "$GITHUB_ENV"
+
+          VERSION=$(node -p "require('./src-tauri/tauri.conf.json').version")
+          echo "VERSION=${VERSION}" >> "$GITHUB_ENV"
+
+          {
+            echo "### macOS build: ${DISTRIBUTION}"
+            echo ""
+            echo "- Version: \`${VERSION}\`"
+            echo "- Signed: \`${SIGNED}\`"
+            echo "- Notarised: \`${NOTARIZED}\`"
+            if [ "${DISTRIBUTION}" != "release" ]; then
+              echo "- **This artifact is not a public release.** It is built without"
+              echo "  the credentials Gatekeeper requires, so macOS will warn on first open."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Import Developer ID certificate
+        if: env.SIGNED == 'true'
+        env:
+          CERTIFICATE_PATH: ${{ runner.temp }}/inkfin-developer-id.p12
+          KEYCHAIN_PATH: ${{ runner.temp }}/inkfin-signing.keychain-db
+        run: |
+          set -euo pipefail
+          if [ -z "${MACOS_KEYCHAIN_PASSWORD:-}" ]; then
+            echo "::error::APPLE_CERTIFICATE is set but MACOS_KEYCHAIN_PASSWORD is not."
+            echo "Set the keychain password secret, or remove the certificate secrets to build an unsigned test bundle."
+            exit 1
+          fi
+          echo "$APPLE_CERTIFICATE" | base64 --decode > "$CERTIFICATE_PATH"
+          security create-keychain -p "$MACOS_KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$MACOS_KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security default-keychain -s "$KEYCHAIN_PATH"
+          security import "$CERTIFICATE_PATH" \
+            -k "$KEYCHAIN_PATH" \
+            -P "$APPLE_CERTIFICATE_PASSWORD" \
+            -T /usr/bin/codesign \
+            -T /usr/bin/security
+          # Only this keychain is in the search list: codesign must find the
+          # Developer ID identity there, and nothing else is needed by the build.
+          security list-keychains -d user -s "$KEYCHAIN_PATH"
+          security set-key-partition-list \
+            -S apple-tool:,apple:,codesign: \
+            -s -k "$MACOS_KEYCHAIN_PASSWORD" \
+            "$KEYCHAIN_PATH"
+          rm -f "$CERTIFICATE_PATH"
+
+      # Tauri looks for AuthKey_<KEYID>.p8 on disk; the secret holds its text so
+      # the key itself never appears in a command line or a log.
+      - name: Write the App Store Connect API key
+        if: env.APPLE_API_KEY != '' && env.APPLE_API_KEY_P8 != ''
+        run: |
+          set -euo pipefail
+          KEY_PATH="$RUNNER_TEMP/AuthKey_${APPLE_API_KEY}.p8"
+          printf '%s' "$APPLE_API_KEY_P8" > "$KEY_PATH"
+          chmod 600 "$KEY_PATH"
+          echo "APPLE_API_KEY_PATH=$KEY_PATH" >> "$GITHUB_ENV"
+
+      - name: Build universal .app and .dmg
+        run: |
+          set -euo pipefail
+          args=(--target universal-apple-darwin --ci)
+          if [ "${SIGNED}" != "true" ]; then
+            # Explicit rather than implied: an unsigned bundle is a test build.
+            args+=(--no-sign)
+          fi
+          npx tauri build "${args[@]}"
+
+      - name: Verify the bundle is universal and complete
+        run: |
+          set -euo pipefail
+          APP="src-tauri/target/universal-apple-darwin/release/bundle/macos/Inkfin.app"
+          DMG_DIR="src-tauri/target/universal-apple-darwin/release/bundle/dmg"
+
+          test -d "$APP" || { echo "::error::$APP is missing"; exit 1; }
+          test -x "$APP/Contents/MacOS/Inkfin" || { echo "::error::the app binary is missing"; exit 1; }
+
+          ARCHS=$(lipo -archs "$APP/Contents/MacOS/Inkfin")
+          echo "Architectures: $ARCHS"
+          case "$ARCHS" in
+            *arm64*x86_64*|*x86_64*arm64*) ;;
+            *) echo "::error::expected a universal binary, got: $ARCHS"; exit 1 ;;
+          esac
+
+          DMG=$(find "$DMG_DIR" -maxdepth 1 -name '*.dmg' -print -quit)
+          test -n "$DMG" || { echo "::error::no .dmg was produced"; exit 1; }
+          echo "DMG: $DMG"
+
+      - name: Verify signing, notarisation and the stapled ticket
+        if: env.NOTARIZED == 'true'
+        run: |
+          set -euo pipefail
+          APP="src-tauri/target/universal-apple-darwin/release/bundle/macos/Inkfin.app"
+          DMG=$(find src-tauri/target/universal-apple-darwin/release/bundle/dmg -maxdepth 1 -name '*.dmg' -print -quit)
+
+          codesign --verify --deep --strict --verbose=2 "$APP"
+          # The decision users actually meet when they launch the app.
+          spctl --assess --type execute --verbose=4 "$APP"
+          xcrun stapler validate "$APP"
+
+          if [ -n "$DMG" ]; then
+            codesign --verify --verbose=2 "$DMG"
+            # Gatekeeper's own verdict on the image is recorded but not gated:
+            # Tauri notarizes and staples the app inside the DMG, and the app
+            # assessment above is the one that decides whether it launches.
+            if spctl --assess --type open --context context:primary-signature --verbose=4 "$DMG"; then
+              echo "::notice::Gatekeeper accepted the disk image."
+            else
+              echo "::warning::Gatekeeper did not accept the disk image itself; the app inside it passed and is stapled."
+            fi
+          fi
+
+      - name: Collect downloadable artifacts
+        run: |
+          set -euo pipefail
+          APP="src-tauri/target/universal-apple-darwin/release/bundle/macos/Inkfin.app"
+          DMG=$(find src-tauri/target/universal-apple-darwin/release/bundle/dmg -maxdepth 1 -name '*.dmg' -print -quit)
+
+          # `ditto` preserves the bundle's symlinks, permissions and extended
+          # attributes; `zip` would flatten them and break the signature.
+          ditto -c -k --sequesterRsrc --keepParent \
+            "$APP" "$RUNNER_TEMP/Inkfin-${VERSION}-universal-${DISTRIBUTION}.app.zip"
+          cp "$DMG" "$RUNNER_TEMP/Inkfin-${VERSION}-universal-${DISTRIBUTION}.dmg"
+          ls -l "$RUNNER_TEMP"
+
+      - name: Upload workflow artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: inkfin-macos-universal-${{ env.DISTRIBUTION }}
+          path: |
+            ${{ runner.temp }}/Inkfin-*-universal-*.dmg
+            ${{ runner.temp }}/Inkfin-*-universal-*.app.zip
+          if-no-files-found: error
+          retention-days: 14
+
+      # The Windows job creates the release from the same tag. Attaching here
+      # avoids creating a second release and does not block the Windows job.
+      - name: Attach to the matching GitHub release
+        if: startsWith(github.ref, 'refs/tags/v') && env.DISTRIBUTION == 'release'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          # The Windows job builds and publishes the release first; allow 20
+          # minutes so a slow Windows runner cannot strand this artifact.
+          for attempt in $(seq 1 40); do
+            if gh release view "$TAG" >/dev/null 2>&1; then
+              break
+            fi
+            echo "Release $TAG does not exist yet (attempt $attempt); waiting for the Windows job."
+            sleep 30
+          done
+          gh release view "$TAG" >/dev/null
+          gh release upload "$TAG" \
+            "$RUNNER_TEMP"/Inkfin-*-universal-release.dmg \
+            "$RUNNER_TEMP"/Inkfin-*-universal-release.app.zip \
+            --clobber
