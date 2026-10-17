@@ -9,3 +9,6 @@ tools/controls.txt
 *.local
 .DS_Store
 Thumbs.db
+
+# Freebuff local project metadata
+.freebuff/
