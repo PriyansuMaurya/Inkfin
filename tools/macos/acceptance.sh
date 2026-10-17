@@ -180,6 +180,49 @@ if running; then
   fi
 fi
 
+# ---- Finder opening, from a cold start ----------------------------------
+# `open <path>` with no application is what a double click does: LaunchServices
+# decides. The app is deliberately not running, so this also exercises the cold
+# start where the file URL arrives before the window exists.
+quit_app
+sleep 3
+if running; then
+  fail "the app was still running before the Finder-open check"
+else
+  if open "$FIXTURE" >"$WORK/finder.log" 2>&1; then
+    sleep 8
+    if running; then
+      record finderOpen pass "open <fixture> reached the app with no application named"
+      TITLE=$(osascript -e "tell application \"System Events\" to get title of window 1 of process \"$APP_NAME\"" 2>&1 || true)
+      if grep -qi "fixture.md" <<<"$TITLE"; then
+        record finderColdStart pass "cold start applied the document: $TITLE"
+      else
+        fail "a document opened through LaunchServices did not reach the window: $TITLE"
+      fi
+    else
+      fail "open <fixture> did not bring the app up"
+    fi
+  else
+    fail "LaunchServices refused to open the fixture: $(cat "$WORK/finder.log")"
+  fi
+fi
+
+# ---- a macOS shortcut, observed rather than assumed ----------------------
+if running; then
+  SHORTCUT=$(osascript -e 'tell application "System Events" to keystroke "f" using command down' 2>&1 || true)
+  sleep 2
+  REACHED=$(osascript -e "tell application \"System Events\" to tell process \"$APP_NAME\" to return role of (value of attribute \"AXFocusedUIElement\")" 2>&1 || true)
+  if grep -qiE "text field|text area" <<<"$REACHED"; then
+    record shortcutFind pass "Cmd+F moved focus to $REACHED"
+  else
+    note shortcutFind "Cmd+F could not be confirmed from outside the app: $REACHED"
+  fi
+  osascript -e 'tell application "System Events" to key code 53' >/dev/null 2>&1 || true
+  [[ -n "$SHORTCUT" ]] && note shortcutDelivery "osascript reported: $SHORTCUT"
+else
+  note shortcutFind "the app was not running, so no shortcut was sent"
+fi
+
 # ---- crash reports and teardown -----------------------------------------
 CRASHES=$(ls "$LOG_DIR" 2>/dev/null | grep -c "$APP_NAME" || true)
 if [[ "${CRASHES:-0}" == "0" ]]; then
