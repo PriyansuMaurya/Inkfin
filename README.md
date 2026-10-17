@@ -31,10 +31,10 @@ npx tauri build --target universal-apple-darwin --no-sign
 
 ## Requirements
 
-| Platform | Versions | Notes |
-| --- | --- | --- |
-| Windows | 10, 11 (64-bit) | WebView2 is included with Windows 10/11; the installer embeds the bootstrapper for machines where it is missing |
-| macOS | 14.2 or later | Universal build for Apple silicon and Intel. Not yet released; find-in-page needs the CSS Custom Highlight API available from macOS 14.2 |
+| Platform | Versions        | Notes                                                                                                                                                         |
+| -------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Windows  | 10, 11 (64-bit) | WebView2 is included with Windows 10/11; the installer embeds the bootstrapper for machines where it is missing                                               |
+| macOS    | 14.2 or later   | Universal build for Apple silicon and Intel. No macOS build has been published yet; find-in-page needs the CSS Custom Highlight API available from macOS 14.2 |
 
 ## Features
 
@@ -88,10 +88,12 @@ npm run tauri build
 
 ## Releasing
 
-Two workflows run on the same `v*.*.*` tag:
+One workflow, `.github/workflows/release.yml`, runs on each `v*.*.*` tag and on manual dispatch. It builds both platforms, verifies each artifact, then attaches the installable files to the GitHub release:
 
-- `.github/workflows/release.yml` builds the Windows NSIS installer and creates the GitHub Release.
-- `.github/workflows/macos-release.yml` builds one universal `.app` and `.dmg` on `macos-15`, and attaches them to that release **only when they are labelled `release`** (signed, notarised and stapled). Without the signing secrets it uploads an `unsigned` test bundle as a workflow artifact instead, so it can never be mistaken for a public download.
+- **Windows** — `Inkfin_<version>_x64-setup.exe`, the NSIS installer, built on `windows-latest`.
+- **macOS** — `Inkfin_<version>_universal.dmg`, one universal disk image for Apple silicon and Intel, built on `macos-15`. A manual run publishes `v<version>`; to re-build an existing release, dispatch the workflow against that tag rather than `main`.
+
+A release is only published once **both** installers exist, so a half-built release never appears. The macOS file name states what it is: without Apple credentials it is `-unsigned`, and with a certificate but no notarisation it is `-signed-unnotarized`. Those are installable test builds, not notarised public releases.
 
 To publish a new version:
 
@@ -103,7 +105,7 @@ git tag v0.1.1
 git push origin v0.1.1
 ```
 
-The macOS signing and notarisation secrets are listed in [MACOS-PACKAGING.md](docs/MACOS-PACKAGING.md) §4. Without them the macOS job still builds and verifies the two slices, but the artifact is labelled `unsigned` or `signed-unnotarized` and is never attached to the release. A notarised build has never been produced.
+The macOS signing and notarisation secrets are listed in [MACOS-PACKAGING.md](docs/MACOS-PACKAGING.md) §4. Without them the macOS job still builds and verifies the two slices, and attaches the DMG under an `-unsigned` name; macOS blocks its first launch until you allow it in System Settings → Privacy & Security. A notarised build has never been produced.
 
 ## Limitations
 

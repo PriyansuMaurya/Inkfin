@@ -59,22 +59,28 @@ rustup target add aarch64-apple-darwin x86_64-apple-darwin
 
 ## 3. What the workflow does
 
-`.github/workflows/macos-release.yml`, triggered by the same `v*.*.*` tag as the
-Windows release (and by manual dispatch):
+`.github/workflows/release.yml` is the only release workflow. It runs on a
+`v*.*.*` tag and on manual dispatch, and publishes the installable files for both
+platforms to one GitHub release:
 
-1. Runs on `macos-15` (Apple silicon). Both slices are cross-compiled there.
-2. Installs Node 22, the two Rust targets, and caches cargo.
-3. Decides the distribution level **from the secrets that exist** — it never
-   assumes they do:
-   | Secrets present | Artifact label | Meaning |
+1. A `resolve` job reads the version from `src-tauri/tauri.conf.json`, derives
+the tag (`v<version>` for a manual run), refuses to continue if a pushed tag and
+the app version disagree or if a run from a newer commit would overwrite an
+older tag's assets, and decides the macOS distribution level **from the secrets
+that exist** — it never assumes they do:
+   | Secrets present | Artifact suffix | Meaning |
    | --- | --- | --- |
-   | certificate + Apple ID trio, or certificate + API key pair | `release` | Signed, notarised, stapled; eligible for the public release |
-   | certificate only | `signed-unnotarized` | Gatekeeper will warn on first open; not a release |
-   | none | `unsigned` | Test bundle only; not a release |
-4. Imports the `.p12` into a throwaway keychain, writes the App Store Connect
-   `.p8` when the API-key route is used, and builds with `--no-sign` when no
-   certificate exists so the absence is explicit rather than accidental.
-5. Verifies the artifact before uploading it:
+   | certificate + Apple ID trio, or certificate + API key pair | none | Signed, notarised, stapled; the release-quality download |
+   | certificate only | `-signed-unnotarized` | Gatekeeper will warn on first open; not a release |
+   | none | `-unsigned` | Installable test build only; not a release |
+2. `build-windows` runs on `windows-latest`, builds the NSIS installer and fails
+if no `*-setup.exe` was produced.
+3. `build-macos` runs on `macos-15` (Apple silicon; both slices are
+cross-compiled there). It installs Node 22, the two Rust targets and the cargo
+cache, imports the `.p12` into a throwaway keychain, writes the App Store Connect
+`.p8` when the API-key route is used, and builds with `--no-sign` when no
+certificate exists so the absence is explicit rather than accidental.
+4. It verifies the artifact before uploading it:
    - `lipo -archs` on the binary must list both `arm64` and `x86_64`;
    - the `.app` bundle and binary must exist, and a `.dmg` must have been produced;
    - when notarised: `codesign --verify --deep --strict` and `spctl --assess`
@@ -82,11 +88,13 @@ Windows release (and by manual dispatch):
      the disk image. Gatekeeper's verdict on the image itself is reported but
      does not fail the job: Tauri notarises and staples the app inside the DMG,
      and the app assessment is the one that decides whether it launches.
-6. Zips the `.app` with `ditto` (a plain `zip` flattens symlinks and breaks the
-   signature), keeps the `.dmg`, and uploads both as workflow artifacts under a
-   distribution-labelled name.
-7. For a tag, waits for the Windows job to create the release, then attaches the
-   two files to it. Only `release`-labelled artifacts are attached.
+5. The verified DMG is copied to `Inkfin_<version>_universal<suffix>.dmg`, where
+the suffix comes from the table in step 1, and both installers are uploaded as
+workflow artifacts.
+6. `publish` waits for both build jobs, downloads the two installers, and creates
+the release — or replaces the assets of an existing one. The release body marks
+an un-notarised macOS build as such. Because the job needs both builds, a failure
+on either platform leaves the previous release untouched rather than half-built.
 
 ## 4. Secrets for public distribution
 
@@ -144,8 +152,8 @@ quarantine, first-open prompt), and it proves nothing about signing.
 
 Unchanged and still primary:
 
-- `.github/workflows/release.yml` builds and publishes the NSIS installer on
-  `windows-latest` from the same tag.
+- `.github/workflows/release.yml` builds the NSIS installer on `windows-latest`
+  and uploads it from the `publish` job of the same workflow.
 - `tauri.conf.json` keeps `"targets": ["nsis"]`, the current-user install mode
   and the embedded WebView2 bootstrapper.
 - `tools/dev-setup/build.ps1` still builds locally when `cargo` is not on PATH.
@@ -156,11 +164,14 @@ stay as it is.
 
 ## 7. Release gate (open)
 
-The public macOS release may be announced only when **all** of these hold:
+The public macOS release may be announced only when **all** of these hold.
+Attaching an `-unsigned` or `-signed-unnotarized` DMG to a release is allowed — it
+is an installable test build and is labelled as one — but it does not satisfy
+M3–M6, so no page may present it as the release.
 
 | # | Gate | Status |
 | --- | --- | --- |
-| M1 | The workflow is on the default branch and has run on a macOS runner, producing both artifacts | Not run; the file is not yet pushed and no run exists |
+| M1 | The workflow is on the default branch and has run on a macOS runner, producing both artifacts | Not run; no run exists |
 | M2 | `lipo -archs` shows `arm64` and `x86_64` (the workflow asserts this) | Not run |
 | M3 | The artifact is labelled `release` (certificate + notarisation secrets present) | Blocked on credentials |
 | M4 | `spctl --assess` passes on a machine that downloaded the DMG through a browser, with quarantine applied | Blocked on M3 |
@@ -191,6 +202,8 @@ macOS tested on:     <versions>
 - The workflow file parses as YAML, and the base + macOS override, deep-merged
 the way the CLI merges them, validates against the shipped
   `@tauri-apps/cli/config.schema.json` (Ajv).
+- The tag/version resolution, distribution labelling and asset naming were run
+  locally against the real config for both trigger styles (tag and manual).
 - The distribution-label step was run locally against five secret combinations:
   none → `unsigned`, certificate only → `signed-unnotarized`, certificate plus
   the Apple ID trio → `release`, certificate plus the API key pair → `release`,

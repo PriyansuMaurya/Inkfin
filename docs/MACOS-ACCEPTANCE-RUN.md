@@ -34,9 +34,10 @@ A row marked `PASS` here is evidence only for the exact artifact and macOS versi
 
 ## 2. Produce an artifact
 
-There is no macOS artifact in this repository, and the macOS workflow has never run. Build one on a
-Mac, or run [.github/workflows/macos-release.yml](../.github/workflows/macos-release.yml) by
-`workflow_dispatch`.
+There is no macOS artifact in this repository yet, and the release workflow has never run. Build one
+on a Mac, or run [.github/workflows/release.yml](../.github/workflows/release.yml) by
+`workflow_dispatch` — the DMG is attached to the release as `-unsigned` and is also downloadable
+from the run's artifacts.
 
 ```bash
 # On the Mac, from the repository root:
