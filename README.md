@@ -101,8 +101,8 @@ To publish a new version:
 2. Commit, then tag and push:
 
 ```bash
-git tag v0.1.1
-git push origin v0.1.1
+git tag v0.1.2
+git push origin v0.1.2
 ```
 
 The macOS signing and notarisation secrets are listed in [MACOS-PACKAGING.md](docs/MACOS-PACKAGING.md) §4. Without them the macOS job still builds and verifies the two slices, and attaches the DMG under an `-unsigned` name; macOS blocks its first launch until you allow it in System Settings → Privacy & Security. A notarised build has never been produced.

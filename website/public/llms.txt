@@ -2,22 +2,23 @@
 
 > Inkfin is a free, private, read-only Markdown viewer for Windows 10 and 11 (64-bit). It renders GitHub Flavoured Markdown locally with search, themes, syntax highlighting, zoom and automatic refresh, with no accounts, analytics, telemetry or network requests.
 
-A universal macOS build (macOS 14.2 or later, Apple silicon and Intel) is prepared in the source repository, but no macOS package is published: it has not been signed, notarised or verified on a Mac.
+A universal macOS build (macOS 14.2 or later, Apple silicon and Intel) is published as an explicitly unsigned test build: it is not signed or notarised, and macOS blocks its first launch until the user allows it.
 
-Inkfin is a desktop application, not a web service. Current version 0.1.1; installer 3.5 MB; price $0. Documents are opened and rendered on the user's own machine: remote images are blocked, raw HTML is not executed, and files are never modified.
+Inkfin is a desktop application, not a web service. Current version 0.1.2; Windows installer 3.5 MB; price $0. Documents are opened and rendered on the user's own machine: remote images are blocked, raw HTML is not executed, and files are never modified.
 
 ## Key pages
 
 - [Home](https://inkfin.maurya.ie/): Product overview, features, privacy details and FAQ
 - [GitHub repository](https://github.com/PriyansuMaurya/Inkfin): Source code, issues and documentation
 - [Releases](https://github.com/PriyansuMaurya/Inkfin/releases): All versions and download files
-- [v0.1.1 release notes](https://github.com/PriyansuMaurya/Inkfin/releases/tag/v0.1.1): Changes in the current version
-- [Download installer](https://github.com/PriyansuMaurya/Inkfin/releases/download/v0.1.1/Inkfin_0.1.1_x64-setup.exe): `Inkfin_0.1.1_x64-setup.exe` for 64-bit Windows 10 and Windows 11
+- [v0.1.2 release notes](https://github.com/PriyansuMaurya/Inkfin/releases/tag/v0.1.2): Changes in the current version
+- [Windows installer](https://github.com/PriyansuMaurya/Inkfin/releases/download/v0.1.2/Inkfin_0.1.2_x64-setup.exe): `Inkfin_0.1.2_x64-setup.exe` for 64-bit Windows 10 and Windows 11
+- [macOS disk image](https://github.com/PriyansuMaurya/Inkfin/releases/download/v0.1.2/Inkfin-0.1.2-universal-unsigned.dmg): `Inkfin-0.1.2-universal-unsigned.dmg`, unsigned and not notarised; Gatekeeper blocks the first launch until allowed in System Settings
 
 ## Platforms
 
-- Windows: available. 64-bit Windows 10 and Windows 11; the installer includes the WebView2 bootstrapper. Version 0.1.1, installer 3.5 MB.
-- macOS: not yet published. The source targets macOS 14.2 or later as one universal build; signing, notarisation, stapling and a clean-Mac acceptance run are still outstanding.
+- Windows: available. 64-bit Windows 10 and Windows 11; the installer includes the WebView2 bootstrapper. Version 0.1.2, installer 3.5 MB.
+- macOS: unsigned test build. One universal disk image for macOS 14.2 or later on Apple silicon and Intel; signing, notarisation, stapling and a clean-Mac acceptance run are still outstanding.
 - Not available: Linux, iOS, Android or a web version.
 
 ## Features
@@ -37,6 +38,6 @@ Inkfin is a desktop application, not a web service. Current version 0.1.1; insta
 ## FAQ
 
 - Supported systems: 64-bit Windows 10 and Windows 11; the installer includes the WebView2 bootstrapper. macOS 14.2 or later is targeted but not yet released
-- macOS availability: the build is configured but not published, because signing, notarisation and clean-Mac verification have not happened. Only the Windows installer is downloadable
+- macOS availability: the disk image is downloadable but unsigned and not notarised, so macOS blocks the first launch until it is allowed in System Settings. Signing, notarisation and clean-Mac verification have not happened
 - Offline use: works fully without internet; remote images are intentionally blocked
 - SmartScreen warning: the current installer is not code-signed; choose "More info" then "Run anyway" to run it
