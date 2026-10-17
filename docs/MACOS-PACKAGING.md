@@ -171,30 +171,34 @@ M3–M6, so no page may present it as the release.
 
 | # | Gate | Status |
 | --- | --- | --- |
-| M1 | The workflow is on the default branch and has run on a macOS runner, producing both artifacts | Not run; no run exists |
-| M2 | `lipo -archs` shows `arm64` and `x86_64` (the workflow asserts this) | Not run |
-| M3 | The artifact is labelled `release` (certificate + notarisation secrets present) | Blocked on credentials |
+| M1 | The workflow is on the default branch and has run on a macOS runner, producing both artifacts | **Passed** 17 October 2026, run [39041541760](https://github.com/PriyansuMaurya/Inkfin/actions/runs/39041541760) on tag `v0.1.2` |
+| M2 | `lipo -archs` shows `arm64` and `x86_64` (the workflow asserts this) | **Passed**; the job printed `Architectures: x86_64 arm64` |
+| M3 | The artifact is labelled `release` (certificate + notarisation secrets present) | Open; no credential configured, so the published DMG is `-unsigned` |
 | M4 | `spctl --assess` passes on a machine that downloaded the DMG through a browser, with quarantine applied | Blocked on M3 |
-| M5 | The app launches from `/Applications` on macOS 14.2 (oldest supported) and on the newest release | Not run |
-| M6 | The functional checks in `MACOS-FINDER-CHECKS.md` and `MACOS-DOCUMENT-PIPELINE.md` pass on that build | Not run |
-| M7 | Windows packaging still produces an installer (verified on every release) | Verified locally on 17 October 2026; see §8 |
+| M5 | The app launches from `/Applications` on macOS 14.2 (oldest supported) and on the newest release | Not run; no Mac |
+| M6 | The functional checks in `MACOS-FINDER-CHECKS.md` and `MACOS-DOCUMENT-PIPELINE.md` pass on that build | Not run; no Mac |
+| M7 | Windows packaging still produces an installer (verified on every release) | **Passed** in the same run; `Inkfin_0.1.2_x64-setup.exe`, 3,700,009 bytes |
 
-Record the first run:
+Record of the first run:
 
 ```text
-Workflow run:        <url>
-Runner image:        macos-15 (<image version>)
-Artifact label:      release / signed-unnotarized / unsigned
-DMG size:            <MB>
-lipo -archs:         <output>
-codesign:            <authority, team>
-spctl:               accepted / rejected (<reason>)
-Stapled ticket:      yes / no
-macOS tested on:     <versions>
+Workflow run:        https://github.com/PriyansuMaurya/Inkfin/actions/runs/39041541760
+Runner image:        macos-15-arm64 (20260907.0337) / windows-latest
+Artifact label:      unsigned
+DMG size:            7,788,508 bytes (7.4 MB)
+lipo -archs:         x86_64 arm64
+codesign:            not run (no certificate)
+spctl:               not run (not notarised)
+Stapled ticket:      no
+macOS tested on:     none
 ```
 
 ## 8. What has been verified without a Mac
 
+- The workflow has now run end to end on tag `v0.1.2`: both platform builds and
+  the `publish` job succeeded, the DMG and the NSIS installer were attached to
+  the release, and both download URLs return HTTP 200. The macOS artifact is
+  `unsigned`, so no signing, notarisation or stapling command exercised yet.
 - The macOS override parses and only adds macOS keys; `hardenedRuntime` is true
   and `minimumSystemVersion` is `14.2` (`cargo test`, contract tests).
 - The base config still names the app, identifier, icons, associations and

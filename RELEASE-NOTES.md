@@ -4,11 +4,10 @@ Released 17 October 2026.
 
 ## Download
 
-| Platform                                    | File                                                                                                                                           | Size   | Status              |
-| ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | ------ | ------------------- |
-| Windows 10 / 11 (64-bit)                    | [`Inkfin_0.1.2_x64-setup.exe`](https://github.com/PriyansuMaurya/Inkfin/releases/download/v0.1.2/Inkfin_0.1.2_x64-setup.exe)                   | 3.5 MB | Available           |
-| macOS 14.2 or later (Apple silicon + Intel) | [`Inkfin-0.1.2-universal-unsigned.dmg`](https://github.com/PriyansuMaurya/Inkfin/releases/download/v0.1.2/Inkfin-0.1.2-universal-unsigned.dmg) | —      | Unsigned test build |
-| Linux                                       | —                                                                                                                                              | —      | Not supported       |
+| Platform | File | Size | Status |
+| ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | ------ | ------------------- || Windows 10 / 11 (64-bit) | [`Inkfin_0.1.2_x64-setup.exe`](https://github.com/PriyansuMaurya/Inkfin/releases/download/v0.1.2/Inkfin_0.1.2_x64-setup.exe) | 3.5 MB (3,700,009 bytes) | Available |
+| macOS 14.2 or later (Apple silicon + Intel) | [`Inkfin-0.1.2-universal-unsigned.dmg`](https://github.com/PriyansuMaurya/Inkfin/releases/download/v0.1.2/Inkfin-0.1.2-universal-unsigned.dmg) | 7.4 MB (7,788,508 bytes) | Unsigned test build |
+| Linux | — | — | Not supported |
 
 The Windows installer registers `.md` and `.markdown` associations, so files open from Explorer with
 a double-click or **Open With**. It is not code-signed yet, so SmartScreen may warn on first run;
@@ -57,8 +56,10 @@ Flavoured Markdown document with syntax highlighting, light/dark/system themes, 
 ## Verification in this release
 
 - Automated on Windows: `tsc --noEmit` and ESLint clean, 84 Vitest tests across 14 files pass.
-- Packaging: both installers are produced by CI from the same tag; the macOS bundle is labelled
-  `-unsigned` because no Apple Developer ID or notarisation credential is configured.
+- Packaging: both installers were produced by CI from the same tag in run
+  [39041541760](https://github.com/PriyansuMaurya/Inkfin/actions/runs/39041541760); `lipo` reported
+  `x86_64 arm64`, and the macOS bundle is labelled `-unsigned` because no Apple Developer ID or
+  notarisation credential is configured.
 - Not covered: no Windows installer smoke test on a clean machine, no macOS launch, and no macOS
   acceptance run. The Windows release gates in [docs/PRD.md](docs/PRD.md) and the macOS gate in
   [docs/MACOS-PACKAGING.md](docs/MACOS-PACKAGING.md) §7 remain open.

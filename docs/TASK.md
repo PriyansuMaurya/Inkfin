@@ -102,7 +102,8 @@ Evidence key used below:
 - [x] Rewrite the README install, requirements, release and limitation sections for two platforms without claiming a macOS download: Windows is available; macOS requirements, unsigned test-build command and the open gate are stated. - `README.md`; links resolve in the working tree
 - [x] Add an explicit platform chooser to the single-page site: Windows with the real v0.1.1 installer, macOS marked `Not yet published` with no download link, plus requirements, signing status and a macOS FAQ entry. - `website/index.html`, `website/styles.css`, `website/public/llms.txt`; built and measured at 1440 and 390 px, no horizontal overflow
 - [x] Add factual release notes with per-platform downloads, requirements and limitations, and keep the live GitHub release body unchanged until a macOS asset exists. - `RELEASE-NOTES.md`
-- [ ] Attach a signed, notarised macOS `.dmg` and `.app.zip` to the existing `v0.1.1` release alongside the Windows installer. - blocked: no macOS build exists, no Apple Developer ID or notarisation secrets are configured, and the workflow is not on the default branch
+- [x] Attach a macOS `.dmg` to the release alongside the Windows installer from one pipeline, named after its real signing state. - `v0.1.2`, run 39041541760: `Inkfin-0.1.2-universal-unsigned.dmg` 7,788,508 bytes, installer 3,700,009 bytes, `lipo` `x86_64 arm64`
+- [ ] Attach a **signed, notarised** macOS `.dmg` and `.app.zip` to a release. - blocked: no Apple Developer ID or notarisation secrets are configured
 - [ ] Verify the signed package on a clean Mac (Gatekeeper, stapling, acceptance matrix A1–K3) before publishing it. - blocked: no Mac and no credentials
 
 

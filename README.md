@@ -31,10 +31,10 @@ npx tauri build --target universal-apple-darwin --no-sign
 
 ## Requirements
 
-| Platform | Versions        | Notes                                                                                                                                                         |
-| -------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Windows  | 10, 11 (64-bit) | WebView2 is included with Windows 10/11; the installer embeds the bootstrapper for machines where it is missing                                               |
-| macOS    | 14.2 or later   | Universal build for Apple silicon and Intel. No macOS build has been published yet; find-in-page needs the CSS Custom Highlight API available from macOS 14.2 |
+| Platform | Versions        | Notes                                                                                                                                                       |
+| -------- | --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Windows  | 10, 11 (64-bit) | WebView2 is included with Windows 10/11; the installer embeds the bootstrapper for machines where it is missing                                             |
+| macOS    | 14.2 or later   | Universal build for Apple silicon and Intel, published as an unsigned test build; find-in-page needs the CSS Custom Highlight API available from macOS 14.2 |
 
 ## Features
 
@@ -110,7 +110,7 @@ The macOS signing and notarisation secrets are listed in [MACOS-PACKAGING.md](do
 ## Limitations
 
 - **Windows installer is unsigned.** SmartScreen warns on first run; there is no auto-update.
-- **macOS is unreleased and unverified.** The bundle configuration, Finder integration and WKWebView behaviour have never been exercised on a Mac. No signed or notarised package exists.
+- **macOS is an unsigned test build.** The universal DMG builds in CI, but it is not signed or notarised (macOS blocks the first launch) and its Finder and WKWebView behaviour has never been exercised on a Mac. No signed or notarised package exists.
 - **Linux is not supported.** No build target or packaging is configured.
 - No editing, tabs, print/PDF, outline, recent files, cloud sync or telemetry. Remote images are blocked by design.
 - Search relies on the CSS Custom Highlight API, which is why the macOS floor is 14.2 rather than an older release.
