@@ -41,22 +41,40 @@ export class DocumentAssets {
   #urls: string[] = [];
   #pending = new Map<string, Promise<AssetResult>>();
 
+  /**
+   * Requests that arrived before the document generation was published.
+   *
+   * A child effect runs before its parent's, so the first paint of a document
+   * resolves its images before the controller has called `setGeneration`. Those
+   * requests wait here instead of reporting a missing image that would never be
+   * retried, because the reference itself has not changed.
+   */
+  #waitingForGeneration: Array<() => void> = [];
+  #disposed = false;
+
   /** Point the cache at a new document, revoking everything the old one held. */
   setGeneration(generation: number | null): void {
     if (this.#generation === generation) return;
     this.#revokeAll();
     this.#pending.clear();
     this.#generation = generation;
+    if (generation !== null) this.#releaseWaiting();
   }
 
   /** Resolve a relative reference to a displayable object URL. */
-  resolve(reference: string): Promise<AssetResult> {
+  async resolve(reference: string): Promise<AssetResult> {
+    if (this.#generation === null && !this.#disposed) {
+      await new Promise<void>((release) => {
+        this.#waitingForGeneration.push(release);
+      });
+    }
+
     const generation = this.#generation;
     if (generation === null) {
-      return Promise.resolve({
+      return {
         status: 'missing',
         message: 'No document is open.',
-      });
+      };
     }
 
     const cached = this.#pending.get(reference);
@@ -72,6 +90,15 @@ export class DocumentAssets {
     this.#revokeAll();
     this.#pending.clear();
     this.#generation = null;
+    this.#disposed = true;
+    // Nobody is left waiting on a document that will never arrive.
+    this.#releaseWaiting();
+  }
+
+  #releaseWaiting(): void {
+    const waiting = this.#waitingForGeneration;
+    this.#waitingForGeneration = [];
+    for (const release of waiting) release();
   }
 
   async #load(generation: number, reference: string): Promise<AssetResult> {

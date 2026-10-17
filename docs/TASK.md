@@ -104,6 +104,10 @@ Evidence key used below:
 - [x] Add factual release notes with per-platform downloads, requirements and limitations, and keep the live GitHub release body unchanged until a macOS asset exists. - `RELEASE-NOTES.md`
 - [x] Attach a macOS `.dmg` to the release alongside the Windows installer from one pipeline, named after its real signing state. - `v0.1.2`, run 39041541760: `Inkfin-0.1.2-universal-unsigned.dmg` 7,788,508 bytes, installer 3,700,009 bytes, `lipo` `x86_64 arm64`
 - [ ] Attach a **signed, notarised** macOS `.dmg` and `.app.zip` to a release. - blocked: no Apple Developer ID or notarisation secrets are configured
+- [x] Write a risk-based Windows/macOS test matrix covering opening, launch paths, rendering, search, zoom, themes, shortcuts, accessibility, refresh, hostile files and packaging, with blocking gates and per-row evidence keys. - `docs/TEST-MATRIX.md`
+- [x] Audit the repository against that matrix, run the automated suites and drive the packaged Windows binary outside the app (window, CDP render, refresh, long document, signature state), and record per-row environment, result and evidence. - `docs/TEST-REPORT.md`; `FE-TESTS` 95/95, `RUST-TESTS` 59/59, clippy/fmt clean, packaged probe clean
+- [x] Fix the relative-image first-paint race found by the packaged probe: images resolved before the asset cache had a document generation and stayed broken for the life of the document. - `src/features/document/assets.ts`; `tests/markdownImage.spec.tsx` (6 new tests), packaged probe now resolves the image in 1 ms
+- [x] Add automated coverage for the file-level states the matrix names: empty, oversized, non-UTF-8, denied and vanished files through the real app shell. - `tests/fileStates.spec.tsx` (5 tests); `FE-TESTS`
 - [ ] Verify the signed package on a clean Mac (Gatekeeper, stapling, acceptance matrix A1–K3) before publishing it. - blocked: no Mac and no credentials
 
 

@@ -10,5 +10,8 @@ tools/controls.txt
 .DS_Store
 Thumbs.db
 
+# Local test artifacts (installers, disk images, build logs)
+artifacts/
+
 # Freebuff local project metadata
 .freebuff/
