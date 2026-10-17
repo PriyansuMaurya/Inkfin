@@ -212,7 +212,9 @@ if running; then
   SHORTCUT=$(osascript -e 'tell application "System Events" to keystroke "f" using command down' 2>&1 || true)
   sleep 2
   REACHED=$(osascript -e "tell application \"System Events\" to tell process \"$APP_NAME\" to return role of (value of attribute \"AXFocusedUIElement\")" 2>&1 || true)
-  if grep -qiE "text field|text area" <<<"$REACHED"; then
+  # The accessibility API reports AXTextField; a plain-language name means a
+  # different system version, and anything else is a real answer too.
+  if grep -qiE "AXTextField|AXTextArea|text field|text area" <<<"$REACHED"; then
     record shortcutFind pass "Cmd+F moved focus to $REACHED"
   else
     note shortcutFind "Cmd+F could not be confirmed from outside the app: $REACHED"
