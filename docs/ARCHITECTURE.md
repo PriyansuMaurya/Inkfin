@@ -1,119 +1,122 @@
-# Markdown Preview - Technical Architecture
+# Inkfin - Technical Architecture
 
-**Status:** Proposed implementation blueprint. Lock exact dependency versions when scaffolding and record them in the lockfile.
+**Status:** Implemented on Windows. A macOS build foundation exists in this tree but has not been built or run on macOS. Platform-specific claims below are marked accordingly.
 
 ## Stack and deployment
 
 | Layer | Choice | Responsibility |
 | --- | --- | --- |
-| Shell/native | Tauri 2 + Rust | Window, launch arguments, native picker/drop events, validated read-only file access, file watching, packaging |
-| Frontend | React + strict TypeScript + Vite | Presentation and keyboard interactions |
-| Styling | Tailwind CSS + CSS variables | Reading surface and theme tokens |
+| Shell/native | Tauri 2 + Rust | Window, launch events, validated read-only file access, file watching, packaging |
+| Frontend | React 19 + strict TypeScript + Vite | Presentation and keyboard interactions |
+| Styling | Tailwind CSS 4 + CSS variables | Reading surface and theme tokens |
 | Markdown | react-markdown + remark-gfm | CommonMark/GFM component tree; raw HTML disabled |
 | Highlighting | Shiki | Lazy grammar/theme loading; escaped token rendering |
 | Icons | Lucide React | Accessible toolbar icons |
-| Local preferences | Small versioned JSON settings file or Tauri store plugin | Theme, zoom, optional window size; never document contents |
-| Backend/API/database/auth/hosting | None | Entire product runs locally; distribution via Windows installer |
+| Preferences | `tauri-plugin-store` | Theme and zoom only; never document contents |
+| Backend/API/database/auth | None | The product runs entirely locally |
 
-Use a Rust bridge rather than exposing generic frontend filesystem and shell operations. Bundle only the capabilities actually invoked. A browser-exposed asset protocol with wide directory globs is a risk: serve relative images through an explicitly validated native read operation and safe object URLs; revoke URLs on document change. Restrict to local image formats you can decode safely, set MIME explicitly, cap individual asset size and total asset count, reject remote URLs and path traversal. Symlink resolution must stay within the opened document's canonical parent directory. If the team chooses a different asset strategy, document and test equivalent boundaries first.
+The renderer is shared by both platforms. Rendering, search, zoom, preferences and document state have no platform branches.
 
-## Proposed repository structure
+## Process and entry points
 
-```text
-markdown-preview/
-├── PRD.md
-├── ARCHITECTURE.md
-├── RULES.md
-├── DESIGN.md
-├── TASK.md
-├── MEMORY.md
-├── package.json
-├── package-lock.json
-├── tsconfig.json
-├── vite.config.ts
-├── src/
-│   ├── main.tsx
-│   ├── App.tsx
-│   ├── components/
-│   │   ├── EmptyState.tsx
-│   │   ├── Toolbar.tsx
-│   │   ├── DocumentView.tsx
-│   │   ├── CodeBlock.tsx
-│   │   ├── SearchBar.tsx
-│   │   └── Notice.tsx
-│   ├── features/
-│   │   ├── document/{documentController.ts,documentTypes.ts,links.ts,assets.ts}
-│   │   ├── search/{useRenderedSearch.ts,searchDom.ts}
-│   │   └── preferences/{usePreferences.ts,preferences.ts}
-│   ├── bridge/{native.ts,events.ts}
-│   ├── styles/{tokens.css,document.css,app.css}
-│   └── test/fixtures/
-├── src-tauri/
-│   ├── Cargo.toml
-│   ├── tauri.conf.json
-│   ├── capabilities/default.json
-│   ├── icons/
-│   └── src/
-│       ├── main.rs
-│       ├── lib.rs
-│       ├── commands/{document.rs,assets.rs}
-│       ├── services/{paths.rs,watch.rs,launch.rs,preferences.rs}
-│       └── errors.rs
-└── tests/{document.spec.ts,search.spec.ts,security.spec.ts}
-```
+- `src-tauri/src/main.rs` calls `markdown_preview_lib::run()`.
+- `src-tauri/src/lib.rs` builds the Tauri app: single-instance, dialog and store plugins, `AppState`, seven commands, the window-event hook and the run-event loop.
+- `src/main.tsx` mounts `<App />`; `src/App.tsx` composes preferences, the document controller, search, drag/drop and the keyboard map.
+- `src/bridge/{native,events,parse}.ts` is the only renderer access to native commands and events. Every IPC payload is parsed field by field.
 
-Tree is an implementation proposal, not a claim that files already exist. Keep individual modules small, and reorganise if a simpler implementation passes the same boundaries.
+## Native interface seams
 
-## State and contracts
+Platform differences are deliberately small and live behind these modules:
+
+| Concern | Shared interface | Windows | macOS |
+| --- | --- | --- | --- |
+| Launch | `services/launch.rs`: `markdown_arg`, `markdown_path_from_url`, `resolve_launch_path`; all feed `AppState::queue_launch` | argv from Explorer/Open With and from a second process | `RunEvent::Opened` file URLs; `RunEvent::Reopen` for the dock; drag/drop stays a webview event |
+| File associations | One `fileAssociations` entry in the base config | NSIS registers the ProgID | Tauri maps the same entry to `CFBundleDocumentTypes` (not yet verified in a built app) |
+| Paths | `services/paths.rs` is the only filesystem gate | Drive prefixes, reserved device names, `:` in a segment and case-insensitive component comparison | POSIX paths, exact component comparison, colon names allowed |
+| Window | `services/window.rs`: `focus_main`, `on_window_event` | Closing the window keeps the existing close-to-exit behaviour | Closing the main window hides it; dock `Reopen` shows it again |
+| Packaging | `tauri.conf.json` is the Windows base | NSIS installer, WebView2 bootstrapper, `.ico` | `tauri.macos.conf.json` overrides targets, ICNS icon and minimum macOS version |
+
+No renderer component checks `navigator.platform` for window or file behaviour. The one platform decision the renderer makes is the shortcut modifier, isolated in `src/features/platform/platform.ts`.
+
+## State and IPC contract
+
+`AppState` (`src-tauri/src/state.rs`) owns the active document, the live watcher, the launch queue and a monotonic generation counter. A snapshot is:
 
 ```ts
 type DocumentSnapshot = {
+  generation: number;
   canonicalPath: string;
   name: string;
   content: string;
-  revision: string; // hash or monotonically increasing native revision
+  revision: string; // first 16 bytes of SHA-256, hex
   baseDirectory: string;
 };
-type DocumentState =
-  | { status: 'empty' }
-  | { status: 'loading'; requestId: number; previous?: DocumentSnapshot }
-  | { status: 'ready'; document: DocumentSnapshot; warning?: string }
-  | { status: 'error'; message: string; previous?: DocumentSnapshot };
-type Preferences = { version: 1; theme: 'light' | 'dark' | 'system'; zoom: number };
 ```
 
-The native bridge exposes named, read-only IPC commands rather than HTTP endpoints:
+The bridge exposes named, read-only commands rather than a filesystem API:
 
-| IPC command/event | Input | Result/behaviour |
+| Command | Input | Result/behaviour |
 | --- | --- | --- |
-| `open_document` | selected path | Validate extension/type, canonical path, UTF-8 and 10 MiB limit; return snapshot; atomically replace active watch |
-| `read_relative_image` | active document revision + relative asset path | Canonicalise under active parent, validate size/MIME; return bounded bytes/transfer handle |
-| `reload_document` | active document revision | Return new snapshot only on changed contents; keep last good state on errors |
-| `get_pending_launch` | none | Consume queued Explorer launch path after UI listener is ready |
-| `document_changed` event | revision/path/sequence | Signal frontend to request reload; never push unvalidated arbitrary file content |
-| `document_missing` event | revision/path | Show warning after retry; retain last snapshot |
-| `open_external_link` | validated HTTP(S) URL | Open in OS browser via constrained native API |
+| `open_document` | `path` | Validate extension, canonicalise, regular file, 10 MiB, UTF-8; return a snapshot and replace the watcher |
+| `open_linked_document` | `generation`, `link` | Resolve a relative Markdown link inside the active folder after symlinks |
+| `reload_document` | `generation`, `expectedRevision` | Re-read and report whether the hash changed |
+| `active_document` | — | Restore the snapshot after a webview reload |
+| `get_pending_launch` | — | Consume the newest queued launch request (`{ sequence, path }`) |
+| `open_external_link` | `url` | Allow only `http:`/`https:` with a host |
+| `read_relative_image` | `generation`, `reference` | Bounded, contained image bytes with a native MIME decision |
 
-Validate all command inputs on the Rust side even when UI validates them. The asset command is bound to the current opened document; the frontend cannot use it to enumerate arbitrary directories. A new open increments a generation ID; the UI ignores stale responses and old watch events. Stop old watchers and revoke old image object URLs. On file change, debounce roughly 200 ms, retry transient read failures with a short bounded backoff, compare content hash, then update while retaining a scroll anchor (nearest visible heading/element plus relative offset, with scroll ratio fallback). Watch the parent directory to catch rename-over-original saves; filter events to the target basename and canonical path.
+Events are `document_changed`, `document_missing`, `document_unavailable`, `document_recovered`, `document_watch_failed` and `launch_requested`. Drag/drop is a webview event. Events carry identity only, never file content. `document_recovered` exists because a file that returns with unchanged content produces no `document_changed`, and `document_watch_failed` reports a document whose folder could not be watched, so a stale preview is never silent.
 
-## End-to-end data flow
-1. Picker, OS launch or drag event gives a path to Rust; a second-launch event is queued until React can receive it.
-2. Rust validates and reads the document, creates a generation-scoped watcher and returns the snapshot.
-3. React renders with `react-markdown` and `remark-gfm`. Custom components enforce safe URL policy. Inline HTML is escaped or skipped; never enable `rehype-raw`.
-4. Relative image requests go through the bounded native asset command and are rendered using revoked-on-close object URLs; remote images are blocked.
-5. Text search indexes rendered DOM text nodes, excluding toolbar and hidden content. Highlight with DOM ranges or safe wrappers; never replace `innerHTML`. Refresh rebuilds the index and preserves the query.
-6. The watcher emits a change signal; React reloads only the active generation, keeps last good content on failure and restores the scroll anchor.
+## Opening a file
 
-## Security decisions
-- Permit only `http:` and `https:` external links, plus explicitly handled same-document fragments and local Markdown links. Do not open `file:`, `data:`, `javascript:`, custom protocols or executables from Markdown.
-- Resolve local linked Markdown inside the opened document tree, reject directory traversal and symlink escapes. An explicitly selected file may establish a new root; clicking untrusted Markdown may not silently broaden the root.
-- Do not permit arbitrary shell execution, generic filesystem plugin read permissions, remote content access or unsafe HTML injection.
-- Persist only appearance/zoom/window metadata. No path history or content caching in MVP.
-- Prefer a restrictive content security policy and local bundled assets. Audit generated Tauri capabilities and installer associations before release.
+1. **Picker:** `@tauri-apps/plugin-dialog` returns a path; `open_document` validates it.
+2. **Drag/drop:** Tauri's webview drag/drop event supplies real paths; the first Markdown file wins and extra files produce a notice.
+3. **Windows launch:** Explorer starts the process with the path in `argv`, or a second process forwards `argv` through the single-instance plugin. Both push onto the pending queue.
+4. **macOS launch:** Finder/Open With delivers a `file://` URL through `RunEvent::Opened`; `markdown_path_from_url` decodes and filters it, then queues it exactly like an argv launch. A CLI second process still uses the single-instance Unix socket.
+5. **Relative links:** `open_linked_document` validates containment before replacing the document.
+6. **Webview reload:** `active_document` restores the current snapshot.
+
+The queue is the source of truth. `launch_requested` only nudges the webview, so a launch that arrives before React subscribes is not lost. The queue holds the newest request only: with one document on screen, an undrained earlier request is superseded rather than opened first. Each request carries a monotonic `sequence`, and `features/document/launchQueue.ts` applies only a sequence newer than the last one it opened, which keeps an out-of-order event from replacing the document the reader already has.
+
+## File access and assets
+
+`services/paths.rs`:
+
+- Validates `.md`/`.markdown`, canonicalises with `dunce::canonicalize`, checks regular file, 10 MiB and UTF-8, and strips one BOM.
+- `is_within` compares canonical components. It is ASCII-case-insensitive only on Windows; POSIX comparison is exact.
+- `safe_relative_path` rejects remote schemes, absolute paths, traversal, NUL, and on Windows drive prefixes, alternate data streams and reserved device names.
+- Images are limited to PNG/JPEG/GIF/WebP/BMP, 8 MiB each and 128 distinct files per document. SVG is excluded because it is scriptable.
+- Image bytes cross IPC as base64, become a Blob/object URL, and are revoked when the generation changes. Remote images never reach the native layer.
+
+## Rendering and search
+
+- `DocumentView.tsx` renders react-markdown with remark-gfm. Raw HTML is never parsed, `rehype-raw` is absent, and no code path uses `dangerouslySetInnerHTML`.
+- Custom renderers cover links, images, task checkboxes, fenced code, tables and headings. Links are classified before any native call.
+- Shiki uses its JavaScript regex engine, dynamically imported grammars and React token spans. Unknown, oversized or failed highlights fall back to plain text.
+- Search indexes the rendered DOM, not Markdown source. Block boundaries are the only newlines; chrome is excluded; matches are painted with CSS Custom Highlight ranges so selection and copy are untouched. The index rebuilds after refresh and after asynchronous highlighting settles.
+
+## Themes, zoom and settings
+
+- Theme is `light | dark | system`. `matchMedia` tracks the OS, `data-theme` drives tokens, and the native window theme follows (with `null` for system).
+- Zoom is 75–200% in discrete steps, applied through `--k-zoom` to document typography only, and persisted.
+- Preferences are versioned JSON (`version: 1`, `theme`, `zoom`) in the store plugin. Unknown versions fall back to defaults. The app identifier is `com.inkfin.viewer` and the store key/file name are unchanged across platforms, so settings migrate normally.
+
+## Watching
+
+`services/watch.rs` watches the document's parent directory non-recursively, filters to the target basename (compared as `OsStr`, so non-UTF-8 macOS names work), debounces for 200 ms, retries transient reads up to four times, and compares content hashes before emitting an event. Replacing the document replaces the watcher; stale generations are ignored. A missing or unreadable file keeps the last readable preview, and a file that comes back unchanged is reported as recovered. The loop is written against a `WatchHost` trait, so the same code is driven by `AppHandle` in production and by a recording host in the tests that run against real files.
+
+## Packaging and capabilities
+
+- `src-tauri/tauri.conf.json` remains the Windows base: NSIS target, WebView2 bootstrapper, `.ico`, and one association for `.md` and `.markdown`.
+- `src-tauri/tauri.macos.conf.json` adds only macOS concerns: `app`/`dmg` targets, `icon.icns` and `minimumSystemVersion: 14.2`.
+- `src-tauri/capabilities/default.json` grants only `core:default`, window theme/title, `dialog:allow-open` and `store:default`, scoped to the `main` window on Windows, macOS and Linux. No filesystem or shell plugin is exposed to the webview.
+- The window is fully native (`decorations: true`); there is no custom titlebar or drag region.
+
+Minimum macOS 14.2 is deliberate: the CSS Custom Highlight API used by search shipped in Safari/WKWebView 17.2, which macOS 14.2 includes.
 
 ## Verification strategy
-Unit tests cover path policy, MIME/size restrictions, search navigation and preference validation. Integration tests cover switch-during-load, ordinary/atomic saves and repeated watcher replacement. Package-level Windows tests cover double-click, Open With, second instance, offline rendering and both extensions. Measure cold startup and refresh on a release build with a representative document.
 
-## Official references to consult during implementation
-- Tauri v2 [filesystem scope](https://v2.tauri.app/plugin/file-system/), [capabilities](https://v2.tauri.app/learn/security/using-plugin-permissions/) and [configuration](https://v2.tauri.app/reference/config/).
-- [react-markdown security guidance](https://github.com/remarkjs/react-markdown#security) and [remark-gfm](https://github.com/remarkjs/remark-gfm).
+- Frontend: Vitest covers link policy, search, highlighting fallbacks, scroll anchoring, preferences, document rendering, platform shortcuts and IPC parsing.
+- Rust: unit tests cover path containment, traversal, Windows-only device/colon rules, POSIX case sensitivity, symlink escape (including extension borrowing), size/encoding boundaries, launch arguments, URL launches, asset and link resolution, and the watch loop against real files (ordinary and atomic saves, duplicate events, replaced documents, deletion, recovery). `docs/MACOS-DOCUMENT-PIPELINE.md` records the coverage and the Mac-only run sheet.
+- Packaging: Windows installer checks and the macOS acceptance criteria live in `docs/MACOS-PORT-ANALYSIS.md` and `docs/TASK.md`.
+- The macOS build, Finder events, close/reopen, WKWebView rendering and FSEvents saves remain unverified until a macOS build is run.
