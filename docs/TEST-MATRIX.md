@@ -28,7 +28,10 @@ and signing/notarisation.
   `INTERACTION` = `tools/windows/interaction-probe.mjs` (no-argument launch, zoom bounds,
   theme switch, reduced motion),
   `CI` = GitHub Actions run 39041541760, `CI-MAC` =
-  `.github/workflows/macos-acceptance.yml` (run 39047992157). A row may be `PASS` at unit
+  `.github/workflows/macos-acceptance.yml` run 39048972496 on `macos-14` (macOS 14.8.9,
+  Apple M1), `macos-26` (macOS 26.6.2, Apple M1) and `macos-15-intel` (macOS 15.7.9,
+  Intel i7-8700B), driving `tools/macos/acceptance.sh` against the universal DMG. A row may
+  be `PASS` at unit
   level and `UNVERIFIED` at package level; both cells are filled in that case.
 - Rows are stable IDs. Report rows are keyed to them, so a *fix* changes a verdict, not a
   name.
@@ -51,9 +54,9 @@ None of them is satisfied by unit tests alone.
 | GATE-W4 | Ordinary and atomic saves refresh without jumping to the top, in the package | Clean Windows 10/11 x64 | **PARTIAL** — same host: ordinary save 234 ms, atomic rename 237 ms; scroll anchoring itself is unit-tested only |
 | GATE-W5 | Hostile links, raw HTML, symlink escapes and denied paths expose nothing | Clean Windows 10/11 x64 | **PARTIAL** — same host: raw HTML inert, no live `javascript:` hrefs, denied file shows a notice |
 | GATE-W6 | The package works offline and never writes to the document | Clean Windows 10/11 x64 | **PARTIAL** — same host, with every host name resolved to 0.0.0.0: document rendered, no off-scheme request, document byte-identical |
-| GATE-M1 | Install the DMG and launch from `/Applications` on macOS 14.2+ and on the newest macOS | Clean macOS, Apple silicon and Intel | **PARTIAL** — `CI-MAC` on macOS runners: see [TEST-REPORT.md](TEST-REPORT.md) §5 |
+| GATE-M1 | Install the DMG and launch from `/Applications` on macOS 14.2+ and on the newest macOS | Clean macOS, Apple silicon and Intel | **PASS** — `CI-MAC` on three real Macs: DMG mounted, app copied to `/Applications`, launched, and opened the fixture with the title `fixture.md - Inkfin` on macOS 14.8.9 (arm64), 26.6.2 (arm64) and 15.7.9 (Intel) |
 | GATE-M2 | Gatekeeper accepts the download; the ticket is stapled | Clean macOS, signed build | **BLOCKED** — no Apple credentials, artifact is unsigned |
-| GATE-M3 | macOS acceptance matrix A1–K3 in [MACOS-ACCEPTANCE-RUN.md](MACOS-ACCEPTANCE-RUN.md) | Clean macOS | **UNVERIFIED** — the automatable subset runs in `CI-MAC`; pointer, drag and screen-reader rows need a person at the machine |
+| GATE-M3 | macOS acceptance matrix A1–K3 in [MACOS-ACCEPTANCE-RUN.md](MACOS-ACCEPTANCE-RUN.md) | Clean macOS | **PARTIAL** — `CI-MAC` covers A (install), B4–B6's document load and K1–K3 (both architectures and the 14.2 floor); Finder double-click, drag and drop, TCC folders, the pointer rows and screen-reader output still need a person on a Mac |
 | GATE-S1 | The distributed Windows installer is code-signed | Signing certificate | **BLOCKED** — `Status=NotSigned` |
 | GATE-S2 | The distributed macOS DMG is Developer ID signed and notarised | Apple credentials | **BLOCKED** — artifact is `-unsigned` |
 
@@ -64,8 +67,8 @@ None of them is satisfied by unit tests alone.
 | A1 | High | Open a file through the native picker | `.md`/`.markdown` filter; chosen file replaces the document | FE `native.spec.ts` (dialog mocked) | PASS (unit) / UNVERIFIED (pkg) | jsdom / clean Windows |
 | A2 | High | Drag one Markdown file onto the window | Document opens; overlay shown during drag | FE `App` drop path; overlay copy in `App.tsx` | UNVERIFIED (pkg) | clean Windows, clean macOS |
 | A3 | High | Drag several files | First valid Markdown opens, notice for the rest | FE drop handling | UNVERIFIED (pkg) | clean Windows, clean macOS |
-| A4 | Critical | Double-click a `.md` / `.markdown` in Explorer or Finder | App starts with that document | RS `services::mod::file_associations_cover_the_document_extension_policy`, `services::launch::tests::finds_a_markdown_argument_and_ignores_the_executable`; `INSTALLED` dispatched both extensions through the shell into the running instance (`.md` 146 ms, `.markdown` 115 ms, opened by `inkfin`) | PASS (config + shell on this host) / UNVERIFIED (clean Windows, Finder) | Windows 11 (this host), clean Windows, clean macOS |
-| A5 | High | Second launch while running (`Open With`, `open -a`, dock drop) | Existing window focuses and replaces the document; no silent drop | RS `services::launch::tests` (7 cases), FE `launchQueue.spec.ts` (8 cases), `PKG` second launch, `INSTALLED` shell dispatch with process count 1 → 1 | PASS (unit + pkg) | Windows (this host), clean Windows, clean macOS |
+| A4 | Critical | Double-click a `.md` / `.markdown` in Explorer or Finder | App starts with that document | RS `services::mod::file_associations_cover_the_document_extension_policy`, `services::launch::tests::finds_a_markdown_argument_and_ignores_the_executable`; `INSTALLED` dispatched both extensions through the shell into the running instance (`.md` 146 ms, `.markdown` 115 ms, opened by `inkfin`); `CI-MAC` opened the fixture through LaunchServices into the installed app on all three Macs | PASS (config + shell on this host + app-directed open on macOS) / UNVERIFIED (clean Windows, Finder double-click as the default handler) | Windows 11 (this host), clean Windows, macOS runners |
+| A5 | High | Second launch while running (`Open With`, `open -a`, dock drop) | Existing window focuses and replaces the document; no silent drop | RS `services::launch::tests` (7 cases), FE `launchQueue.spec.ts` (8 cases), `PKG` second launch, `INSTALLED` shell dispatch with process count 1 → 1, `CI-MAC` opened a document into the running app on macOS: 1 process before and after, window title `fixture.md - Inkfin` | PASS (unit + pkg) | Windows (this host), clean Windows, macOS runners |
 | A6 | Medium | Cold start via macOS `RunEvent::Opened` | Path queued before the window exists, then opened | RS `services::launch::tests`, FE `documentController.spec.tsx::opens the queued document once the surface mounts` | PASS (unit) / UNVERIFIED (macOS) | clean macOS |
 | A7 | Low | Launch with no argument | Empty state with Open button | FE `App` empty view; `INTERACTION` launched the packaged app with no document: `Open a Markdown file`, an `Open file` control and a `No document open` status | PASS (unit + pkg) | jsdom, Windows (this host), clean Windows, clean macOS |
 | A8 | Medium | macOS dock reopen after closing the window | Window returns with the same document | RS `services::window.rs`; [MACOS-FINDER-CHECKS.md](MACOS-FINDER-CHECKS.md) | UNVERIFIED | clean macOS |
@@ -168,12 +171,12 @@ None of them is satisfied by unit tests alone.
 | ID | Risk | Scenario | Expected | Evidence | Status | Environment |
 | --- | --- | --- | --- | --- | --- | --- |
 | H1 | High | Windows NSIS installer builds from the tag | `Inkfin_0.1.2_x64-setup.exe` produced | CI `build-windows` step; local `npx tauri build`, including the run that carries the NSIS hooks | PASS (build) | Windows runner, this machine |
-| H2 | High | macOS universal DMG builds from the tag | One DMG, `arm64` + `x86_64` | CI `lipo` output `x86_64 arm64`; `CI-MAC` builds the same universal target | PASS (build) | macos-15-arm64, `CI-MAC` |
+| H2 | High | macOS universal DMG builds from the tag | One DMG, `arm64` + `x86_64` | CI `lipo` output `x86_64 arm64`; `CI-MAC` built the universal target and `lipo -archs` reported `x86_64 arm64` on all three Macs | PASS (build + artifact) | macos-15-arm64, `CI-MAC` |
 | H3 | High | Both installers reach the release page | Assets attached, URLs resolve | CI `publish` job; HTTP 200 on both URLs | PASS | GitHub |
 | H4 | Critical | Windows installer signature | Signed by a trusted publisher | `Get-AuthenticodeSignature` on the downloaded installer | FAIL (unsigned by design) | signing certificate absent |
-| H5 | Critical | macOS DMG signature and notarisation | Developer ID signed, notarised, stapled; Gatekeeper accepts | file name `-unsigned`; CI skipped `codesign`/`spctl`/`stapler`; `CI-MAC` records `spctl` refusing the unsigned bundle | FAIL (unsigned by design) | Apple credentials absent |
-| H6 | High | Package installs on a clean machine | Installer completes, app launches | `INSTALLED` installed silently (`/S`), found `%LOCALAPPDATA%\Inkfin\inkfin.exe`, launched it and rendered the fixture; `CYCLE` installed twice and uninstalled | PASS (this host, not clean) / UNVERIFIED (clean machine) | Windows (this host), clean Windows |
-| H7 | High | Associations registered by the installer | `.md`/`.markdown` open the app | `INSTALLED`: both extensions registered to `Markdown Document` with `shell\open\command` pointing at the installed executable, and both dispatched through the shell into the running instance | PASS (this host) / UNVERIFIED (clean machine) | Windows (this host), clean Windows |
+| H5 | Critical | macOS DMG signature and notarisation | Developer ID signed, notarised, stapled; Gatekeeper accepts | file name `-unsigned`; CI skipped `codesign`/`spctl`/`stapler`; `CI-MAC` recorded `spctl` refusing the bundle on all three Macs (the arm64 slices carry only an ad-hoc linker signature, the Intel slice none) | FAIL (unsigned by design) | Apple credentials absent |
+| H6 | High | Package installs on a clean machine | Installer completes, app launches | Windows: `INSTALLED` installed silently (`/S`), found `%LOCALAPPDATA%\Inkfin\inkfin.exe`, launched it and rendered the fixture; `CYCLE` installed twice and uninstalled. macOS: `CI-MAC` mounted the DMG on three ephemeral Macs with no Inkfin present, copied it to `/Applications`, launched it, opened a document and quit cleanly | PASS (macOS runners; Windows on this host, not clean) | macOS runners, Windows (this host), clean Windows |
+| H7 | High | Associations registered by the installer | `.md`/`.markdown` open the app | `INSTALLED`: both extensions registered to `Markdown Document` with `shell\open\command` pointing at the installed executable, and both dispatched through the shell into the running instance. macOS: `CI-MAC` read `CFBundleDocumentTypes` from the installed bundle and found both extensions declared | PASS (Windows this host; macOS declarations on a runner) / UNVERIFIED (Windows clean machine, Finder default handler) | Windows (this host), clean Windows, macOS runners |
 | H8 | Medium | Offline install and use | Works with no network | `INSTALLED` ran the whole session with every host name resolving to 0.0.0.0 | PARTIAL — offline *use* verified, offline *install* not attempted | Windows (this host) |
 | H9 | Medium | Auto-update | Not implemented; manual reinstall | none needed | N/A | — |
 | H10 | High | Uninstall restores the reader's associations | After uninstall, `.md`/`.markdown` are as they were before install | `CYCLE` failed against the previous package (both extensions left pointing at the deleted `Markdown Document` after install → reinstall → uninstall) and passes after the NSIS hooks in `src-tauri/nsis-hooks.nsh` | PASS (this host) | Windows (this host) |
@@ -196,8 +199,13 @@ None of them is satisfied by unit tests alone.
 - Startup time and memory come from this warm development machine, not a clean one.
 - macOS runtime coverage comes from CI runners through
   [.github/workflows/macos-acceptance.yml](../.github/workflows/macos-acceptance.yml).
-  A runner is a real Mac but not a reader: `MACOS-ACCEPTANCE-RUN.md` stays the sheet for
-  Finder, drag and drop, Gatekeeper on a real download and the pointer rows.
+  A runner is a real Mac but not a reader: it is headless, so nothing was seen on screen,
+  WKWebView's DOM cannot be inspected the way the Windows webview can, and the fixture's
+  rendering on macOS is inferred from the document loading (the window title changes only
+  after the document is applied). `MACOS-ACCEPTANCE-RUN.md` stays the sheet for Finder
+  double-click, drag and drop, TCC folders, Gatekeeper on a real download, the pointer
+  rows and spoken output. macOS uninstall (dragging the app to the Trash, what remains in
+  `~/Library`) is not covered either.
 - Two `FAIL` rows (H4, H5) are deliberate distribution facts, not regressions: both
   installers are unsigned, so SmartScreen and Gatekeeper warn. They stay `FAIL` until a
   certificate and Apple credentials exist.

@@ -158,7 +158,9 @@ const zoom = (cdp) => cdp.evaluate("document.documentElement.style.getPropertyVa
 let app = null;
 let cdp = null;
 try {
-  results.exeSha256 = ps(`(Get-FileHash -Algorithm SHA256 -LiteralPath '${exe}').Hash`).toLowerCase();
+  results.exeSha256 = ps(
+    `(Get-FileHash -Algorithm SHA256 -LiteralPath '${exe}').Hash`,
+  ).toLowerCase();
 
   // No document on the command line at all.
   app = spawn(exe, [], {
@@ -208,7 +210,11 @@ try {
   const themeBefore = await cdp.evaluate('document.documentElement.dataset.theme');
   const other = themeBefore === 'dark' ? 'light' : 'dark';
   const opened = await openThemeMenu();
-  const menuShown = await waitFor(cdp, 'document.querySelectorAll("[role=menuitemradio]").length > 0', 3000);
+  const menuShown = await waitFor(
+    cdp,
+    'document.querySelectorAll("[role=menuitemradio]").length > 0',
+    3000,
+  );
   results.checks.themeMenuItems = await cdp.evaluate(
     '[...document.querySelectorAll("[role=menuitemradio]")].map((o) => (o.textContent || "").trim())',
   );
@@ -242,7 +248,9 @@ try {
   await sleep(200);
   zoomSteps.afterReset = await zoom(cdp);
   results.checks.zoom = zoomSteps;
-  const numbers = Object.values(zoomSteps).map(Number).filter((n) => !Number.isNaN(n));
+  const numbers = Object.values(zoomSteps)
+    .map(Number)
+    .filter((n) => !Number.isNaN(n));
   if (numbers.length === 0) fail('zoom never reported a scale');
   if (Math.max(...numbers) > 2.0001) fail(`zoom passed its 200 % ceiling: ${Math.max(...numbers)}`);
   if (Math.min(...numbers) < 0.7499) fail(`zoom passed its 75 % floor: ${Math.min(...numbers)}`);
@@ -312,9 +320,14 @@ try {
   if (!motionReduced.matches) {
     fail('the reduced-motion preference was not applied to the page');
   } else if (animated.length === 0) {
-    note('C11', 'no probed element declares a transition under normal motion, so this row is unverified');
+    note(
+      'C11',
+      'no probed element declares a transition under normal motion, so this row is unverified',
+    );
   } else if (stillAnimated.length > 0) {
-    fail(`reduced motion still animates: ${stillAnimated.map((entry) => entry.selector).join(', ')}`);
+    fail(
+      `reduced motion still animates: ${stillAnimated.map((entry) => entry.selector).join(', ')}`,
+    );
   }
 } catch (error) {
   fail(`probe error: ${error.message}`);
