@@ -48,6 +48,12 @@ export type DocumentNotice = {
    * The action itself lives on the controller, so notices stay plain values.
    */
   retryable?: boolean;
+  /**
+   * Where the notice came from, when it can be withdrawn automatically. A
+   * warning about the file's watch state disappears on its own once the file
+   * is watchable again; a notice from anything else must not.
+   */
+  source?: 'watch';
 };
 
 /** The document currently on screen, if it is readable. */

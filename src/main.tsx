@@ -15,6 +15,11 @@ import './styles/app.css';
 import './styles/document.css';
 
 import { App } from './App';
+import { applyPlatform } from './features/platform/platform';
+
+// Before the first paint: the stylesheet keys the host font stack and scrollbar
+// treatment off this attribute, so setting it later would visibly reflow.
+applyPlatform();
 
 const container = document.getElementById('root');
 if (!container) {

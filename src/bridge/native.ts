@@ -224,9 +224,29 @@ export async function activeDocument(): Promise<DocumentSnapshot | null> {
   return value === null || value === undefined ? null : parseSnapshot(value);
 }
 
-export async function takePendingLaunch(): Promise<string | null> {
-  const value = await invoke<unknown>('get_pending_launch');
-  return typeof value === 'string' ? value : null;
+/**
+ * A launch the operating system asked for, waiting to be drained.
+ *
+ * `sequence` is monotonic for the session. The webview applies the newest one
+ * it has seen and ignores anything older, so a request that was overtaken while
+ * the window was still starting cannot replace the document on screen.
+ */
+export type PendingLaunch = {
+  sequence: number;
+  path: string;
+};
+
+function parsePendingLaunch(value: unknown): PendingLaunch | null {
+  if (!isRecord(value)) return null;
+  const sequence = readNumber(value, 'sequence');
+  const path = readString(value, 'path');
+  if (sequence === null || path === null || path === '') return null;
+  return { sequence, path };
+}
+
+/** Consume the pending launch request, if the OS queued one. */
+export async function takePendingLaunch(): Promise<PendingLaunch | null> {
+  return parsePendingLaunch(await invoke<unknown>('get_pending_launch'));
 }
 
 export async function openExternalLink(url: string): Promise<void> {

@@ -19,6 +19,7 @@ import { Notice } from './components/Notice';
 import { SearchBar } from './components/SearchBar';
 import { Toolbar } from './components/Toolbar';
 import { useDocumentController } from './features/document/documentController';
+import { hasPrimaryModifier } from './features/platform/platform';
 import { formatZoom } from './features/preferences/preferences';
 import { usePreferences } from './features/preferences/usePreferences';
 import { useRenderedSearch } from './features/search/useRenderedSearch';
@@ -107,7 +108,7 @@ export function App() {
       void openExternalLink(url).catch(() => {
         controller.showNotice({
           message: 'The browser could not be opened.',
-          detail: 'The link was validated but Windows refused to launch it.',
+          detail: 'The link was validated but the system refused to launch it.',
           failed: true,
         });
       });
@@ -165,7 +166,7 @@ export function App() {
         return;
       }
 
-      if (!event.ctrlKey || event.altKey || event.metaKey) return;
+      if (!hasPrimaryModifier(event)) return;
 
       switch (event.key) {
         case 'o':

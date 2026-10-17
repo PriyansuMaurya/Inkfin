@@ -21,7 +21,9 @@ import { open as openFileDialog } from '@tauri-apps/plugin-dialog';
 import {
   onDocumentChanged,
   onDocumentMissing,
+  onDocumentRecovered,
   onDocumentUnavailable,
+  onDocumentWatchFailed,
   onLaunchRequested,
   type DocumentUnavailableEvent,
 } from '../../bridge/events';
@@ -42,6 +44,7 @@ import {
   type DocumentNotice,
   type DocumentState,
 } from './documentTypes';
+import { createLaunchDrainer } from './launchQueue';
 
 export type DocumentController = {
   state: DocumentState;
@@ -56,7 +59,7 @@ export type DocumentController = {
   openFromDialog: () => Promise<void>;
   /** Follow a relative Markdown link; resolves to a fragment to scroll to. */
   openLink: (link: string) => Promise<string | null>;
-  /** Explicit reload (Ctrl+R). */
+  /** Explicit reload (the platform's primary shortcut plus R). */
   reload: () => void;
   /** Re-run the operation that produced the current notice. */
   retry: () => void;
@@ -76,6 +79,7 @@ type Action =
   | { type: 'opened'; requestId: number; document: DocumentSnapshot }
   | { type: 'failed'; requestId: number; error: NativeError; retryable: boolean }
   | { type: 'refreshed'; generation: number; document: DocumentSnapshot }
+  | { type: 'watchRestored' }
   | { type: 'notice'; notice: DocumentNotice | null };
 
 const INITIAL_STATE: State = {
@@ -142,6 +146,12 @@ function reducer(state: State, action: Action): State {
         requestId: state.requestId,
       };
     }
+
+    case 'watchRestored':
+      // Only a watcher warning is withdrawn. A notice the reader is already
+      // looking at (a blocked link, say) must not vanish because the file
+      // became watchable again.
+      return state.notice?.source === 'watch' ? { ...state, notice: null } : state;
 
     case 'notice':
       return { ...state, notice: action.notice };
@@ -342,37 +352,69 @@ export function useDocumentController(): DocumentController {
               : 'The file could not be read, so the last readable version is shown.',
           detail: 'The preview updates automatically if the file comes back.',
           failed: true,
+          source: 'watch',
+        },
+      });
+    };
+
+    // The file came back with the content already on screen, so there is
+    // nothing to re-render; only the warning the watcher raised is withdrawn.
+    const handleRecovered = (event: { generation: number }) => {
+      if (event.generation !== documentRef.current?.generation) return;
+      dispatch({ type: 'watchRestored' });
+    };
+
+    // The document is readable but its folder is not watchable (macOS refuses
+    // the folder around a file chosen from a protected location). Saying so is
+    // what keeps a stale preview from looking like a save that did not land.
+    const handleWatchFailed = (event: { generation: number }) => {
+      if (event.generation !== documentRef.current?.generation) return;
+      dispatch({
+        type: 'notice',
+        notice: {
+          message: 'Live refresh is off for this document.',
+          detail:
+            'Its folder could not be watched, so edits will not appear automatically. Reload to refresh.',
+          failed: false,
+          source: 'watch',
         },
       });
     };
 
     const missing = onDocumentMissing(handleUnavailable);
     const unavailable = onDocumentUnavailable(handleUnavailable);
+    const recovered = onDocumentRecovered(handleRecovered);
+    const watchFailed = onDocumentWatchFailed(handleWatchFailed);
     return () => {
       void missing.then((unlisten) => unlisten());
       void unavailable.then((unlisten) => unlisten());
+      void recovered.then((unlisten) => unlisten());
+      void watchFailed.then((unlisten) => unlisten());
     };
   }, []);
 
-  // Explorer, a drop or a second launch asked for a different file.
+  // Explorer, Finder, a dock drop or a second launch asked for a different
+  // file. The drainer owns the ordering rules; this effect only wires it to the
+  // native queue and its notification.
+  //
+  // The drainer is created per effect run rather than memoised: StrictMode runs
+  // mount → cleanup → mount in development, and disposing a shared drainer
+  // would leave the second mount permanently unable to open a queued launch.
   useEffect(() => {
-    let active = true;
-
-    const drain = async () => {
-      const pending = await takePendingLaunch();
-      if (!active || pending === null) return;
-      open(pending);
-    };
-
+    const drainer = createLaunchDrainer(takePendingLaunch, open);
     const listener = onLaunchRequested(() => {
-      void drain();
+      void drainer.drain();
     });
 
-    // A cold start has no event to wait for: the path is already queued.
-    void drain();
+    // A cold start has no event to wait for: the path is already queued. This
+    // drain covers the window between the queue being filled and this listener
+    // existing, and the one after `listen` resolves covers a launch that landed
+    // while the subscription was still being set up.
+    void drainer.drain();
+    void listener.then(() => drainer.drain());
 
     return () => {
-      active = false;
+      drainer.dispose();
       void listener.then((unlisten) => unlisten());
     };
   }, [open]);
@@ -380,15 +422,15 @@ export function useDocumentController(): DocumentController {
   // Restore a document that survived a webview reload.
   useEffect(() => {
     let active = true;
+    // The id is captured before awaiting. If a launch or an open started while
+    // the restore was in flight, the restore is stale and must not put the
+    // previous document back over the one being opened.
+    const requestId = requestCounter.current;
     void (async () => {
       try {
         const existing = await activeDocument();
-        if (active && existing) {
-          dispatch({
-            type: 'opened',
-            requestId: requestCounter.current,
-            document: existing,
-          });
+        if (active && existing && requestCounter.current === requestId) {
+          dispatch({ type: 'opened', requestId, document: existing });
         }
       } catch {
         // A missing active document is the normal first-run case.

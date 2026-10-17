@@ -18,6 +18,7 @@ pub const MAX_ASSETS_PER_DOCUMENT: usize = 128;
 pub const MARKDOWN_EXTENSIONS: [&str; 2] = ["md", "markdown"];
 
 /// Win32 device names that resolve to hardware regardless of extension.
+#[cfg(windows)]
 const RESERVED_DEVICE_NAMES: [&str; 22] = [
     "CON", "PRN", "AUX", "NUL", "COM0", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7",
     "COM8", "COM9", "LPT0", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7",
@@ -25,14 +26,23 @@ const RESERVED_DEVICE_NAMES: [&str; 22] = [
 
 pub fn extension_of(path: &Path) -> String {
     path.extension()
-        .and_then(|extension| extension.to_str())
+        .map(|extension| extension.to_string_lossy().to_ascii_lowercase())
         .unwrap_or_default()
-        .to_ascii_lowercase()
 }
 
+/// Whether the file name ends in a supported Markdown extension.
+///
+/// The comparison is made on `OsStr` rather than on a `String`: macOS volumes
+/// hold file names as arbitrary bytes, so a document can have a valid `.md`
+/// suffix and a name that is not valid UTF-8. Decoding first would silently
+/// refuse those files, including for the watcher, which matches events to the
+/// document by name.
 pub fn is_markdown(path: &Path) -> bool {
-    let extension = extension_of(path);
-    MARKDOWN_EXTENSIONS.contains(&extension.as_str())
+    path.extension().is_some_and(|extension| {
+        MARKDOWN_EXTENSIONS
+            .iter()
+            .any(|known| extension.eq_ignore_ascii_case(known))
+    })
 }
 
 /// MIME type for an image the webview can decode.
@@ -87,9 +97,21 @@ fn component_eq(left: &Component<'_>, right: &Component<'_>) -> bool {
         (Component::RootDir, Component::RootDir) => true,
         (Component::CurDir, Component::CurDir) => true,
         (Component::ParentDir, Component::ParentDir) => true,
-        (Component::Normal(a), Component::Normal(b)) => a
-            .to_string_lossy()
-            .eq_ignore_ascii_case(&b.to_string_lossy()),
+        (Component::Normal(a), Component::Normal(b)) => {
+            // NTFS is case-insensitive; the POSIX file systems Inkfin runs on
+            // are not (APFS is case-sensitive when formatted that way). Both
+            // sides are canonical, so an exact comparison is correct there and
+            // prevents a case-only sibling from passing containment.
+            #[cfg(windows)]
+            {
+                a.to_string_lossy()
+                    .eq_ignore_ascii_case(&b.to_string_lossy())
+            }
+            #[cfg(not(windows))]
+            {
+                a == b
+            }
+        }
         _ => false,
     }
 }
@@ -132,6 +154,15 @@ pub fn validate_document_path(input: &str) -> Result<PathBuf, DocumentError> {
     }
 
     let canonical = canonicalize(&raw)?;
+    // Check the policy again on the resolved path. A symlink named `notes.md`
+    // is legal on macOS and Linux and can point at any file, so accepting the
+    // link's own extension would let a launch, drop or link reach a document
+    // format the reader refuses to open.
+    if !is_markdown(&canonical) {
+        return Err(DocumentError::UnsupportedExtension {
+            extension: extension_of(&canonical),
+        });
+    }
     let metadata = std::fs::metadata(&canonical).map_err(DocumentError::from)?;
     if !metadata.is_file() {
         return Err(DocumentError::NotAFile);
@@ -186,6 +217,7 @@ pub fn revision_of(content: &str) -> String {
 }
 
 /// True for a Win32 device name such as `NUL`, `CON` or `LPT1`.
+#[cfg(windows)]
 fn is_reserved_device_name(segment: &str) -> bool {
     let stem = segment.split('.').next().unwrap_or(segment);
     let normalised = stem.trim_end_matches([' ', '.']).to_ascii_uppercase();
@@ -194,8 +226,9 @@ fn is_reserved_device_name(segment: &str) -> bool {
 
 /// Reduce an untrusted relative reference to a safe relative path.
 ///
-/// Rejects remote schemes, absolute paths, Windows drive prefixes, `..`
-/// traversal, alternate data streams and NUL bytes.
+/// Rejects remote schemes, absolute paths, `..` traversal and NUL bytes. On
+/// Windows it also rejects drive prefixes, alternate data streams and reserved
+/// device names, which are legal path text on POSIX systems.
 pub fn safe_relative_path(input: &str) -> Result<PathBuf, DocumentError> {
     let decoded = percent_encoding::percent_decode_str(input.trim())
         .decode_utf8()
@@ -220,11 +253,14 @@ pub fn safe_relative_path(input: &str) -> Result<PathBuf, DocumentError> {
         });
     }
 
-    let bytes = decoded.as_bytes();
-    if bytes.len() > 1 && bytes[1] == b':' && bytes[0].is_ascii_alphabetic() {
-        return Err(DocumentError::Denied {
-            reason: "absolute drive paths are not allowed".to_string(),
-        });
+    #[cfg(windows)]
+    {
+        let bytes = decoded.as_bytes();
+        if bytes.len() > 1 && bytes[1] == b':' && bytes[0].is_ascii_alphabetic() {
+            return Err(DocumentError::Denied {
+                reason: "absolute drive paths are not allowed".to_string(),
+            });
+        }
     }
     if decoded.contains('\0') {
         return Err(DocumentError::Denied {
@@ -244,13 +280,15 @@ pub fn safe_relative_path(input: &str) -> Result<PathBuf, DocumentError> {
         }
 
         // Win32 strips trailing dots and spaces before resolving a name, so
-        // `.. ` would otherwise slip past the check above.
-        let segment = raw_segment.trim_end_matches([' ', '.']);
+        // `.. ` would otherwise slip past the check above. Unicode whitespace
+        // is included for the same reason: no legitimate reference needs it.
+        let segment = raw_segment.trim_end_matches(|c: char| c.is_whitespace() || c == '.');
         if segment.is_empty() || segment == "." || segment == ".." {
             return Err(DocumentError::Denied {
                 reason: "the reference contains an invalid path segment".to_string(),
             });
         }
+        #[cfg(windows)]
         if segment.contains(':') || is_reserved_device_name(segment) {
             return Err(DocumentError::Denied {
                 reason: "the reference contains an invalid path segment".to_string(),
@@ -280,6 +318,7 @@ mod tests {
         assert!(!is_markdown(Path::new("notes")));
     }
 
+    #[cfg(windows)]
     #[test]
     fn containment_accepts_children_and_rejects_siblings() {
         let root = Path::new(r"C:\docs\project");
@@ -289,6 +328,16 @@ mod tests {
         assert!(!is_within(root, Path::new(r"C:\docs\project-other\a.png")));
         assert!(!is_within(root, Path::new(r"C:\docs\a.png")));
         assert!(!is_within(root, Path::new(r"D:\docs\project\a.png")));
+    }
+
+    #[cfg(not(windows))]
+    #[test]
+    fn containment_is_case_sensitive_on_posix_paths() {
+        let root = Path::new("/Users/test/docs");
+        assert!(is_within(root, Path::new("/Users/test/docs/sub/a.png")));
+        assert!(is_within(root, Path::new("/Users/test/docs")));
+        assert!(!is_within(root, Path::new("/Users/test/Docs/a.png")));
+        assert!(!is_within(root, Path::new("/Users/test/docs-other/a.png")));
     }
 
     #[test]
@@ -310,22 +359,42 @@ mod tests {
             "javascript:alert(1)",
             "//host/share/a.png",
             "/etc/passwd",
-            r"C:\Windows\a.png",
             "file:///c:/a.png",
             // Trailing space/dot normalisation must not defeat the `..` check.
             ".. /secrets.png",
             "images/.. /secrets.png",
             "..\u{00a0}",
-            // Win32 device names are not files.
-            "NUL.png",
-            "CON.md",
-            "lpt1.png",
         ] {
             assert!(
                 safe_relative_path(blocked).is_err(),
                 "{blocked} should be rejected"
             );
         }
+
+        // These are path *text* rules, not filesystem checks, so the Windows
+        // cases must stay in a Windows-only list.
+        #[cfg(windows)]
+        for blocked in [
+            r"C:\Windows\a.png",
+            "images/a:b.png",
+            "NUL.png",
+            "CON.md",
+            "lpt1.png",
+        ] {
+            assert!(
+                safe_relative_path(blocked).is_err(),
+                "{blocked} should be rejected on Windows"
+            );
+        }
+    }
+
+    #[cfg(not(windows))]
+    #[test]
+    fn posix_paths_allow_colons_that_windows_rejects() {
+        assert_eq!(
+            safe_relative_path("notes/2026:10:17.png").expect("colon in a POSIX name"),
+            PathBuf::from("notes/2026:10:17.png")
+        );
     }
 
     #[test]
@@ -430,5 +499,192 @@ mod tests {
         );
 
         std::fs::remove_dir_all(&base).ok();
+    }
+
+    /// macOS and Linux do not need a privilege to create a symlink, so the
+    /// containment rule must be exercised there too rather than only on Windows.
+    #[cfg(unix)]
+    #[test]
+    fn symlink_escape_is_rejected_on_unix() {
+        use std::os::unix::fs::symlink;
+
+        let base = std::env::temp_dir().join("markdown-preview-test-symlink-unix");
+        let root = base.join("root");
+        std::fs::create_dir_all(&root).expect("root directory");
+
+        let secret = base.join("secret.md");
+        std::fs::write(&secret, "# secret").expect("write secret");
+
+        let link = root.join("escape.md");
+        symlink(&secret, &link).expect("create symlink");
+
+        let canonical_root = canonicalize(&root).expect("canonical root");
+        let canonical_link = canonicalize(&link).expect("canonical link");
+        assert!(
+            !is_within(&canonical_root, &canonical_link),
+            "a symlink out of the document folder must not count as contained"
+        );
+
+        std::fs::remove_dir_all(&base).ok();
+    }
+
+    #[test]
+    fn file_names_with_spaces_and_unicode_survive_validation() {
+        let directory = scratch("names");
+        let name = "Résumé — 2026 notes.md";
+        let path = directory.join(name);
+        std::fs::write(&path, "# Notes").expect("write");
+
+        let canonical = validate_document_path(&path.to_string_lossy()).expect("valid document");
+        assert_eq!(
+            canonical.file_name().and_then(|value| value.to_str()),
+            Some(name)
+        );
+        assert_eq!(read_document(&canonical).expect("read"), "# Notes");
+
+        std::fs::remove_dir_all(&directory).ok();
+    }
+
+    #[test]
+    fn utf8_content_is_preserved_except_for_the_byte_order_mark() {
+        let directory = scratch("utf8");
+        let content = "# Héllo 👩‍💻\r\n\r\n| a | b |\r\n";
+        let path = directory.join("emoji.md");
+        std::fs::write(&path, content.as_bytes()).expect("write");
+        assert_eq!(read_document(&path).expect("read"), content);
+
+        let only_bom = directory.join("bom-only.md");
+        std::fs::write(&only_bom, "\u{feff}").expect("write");
+        assert_eq!(read_document(&only_bom).expect("read"), "");
+
+        std::fs::remove_dir_all(&directory).ok();
+    }
+
+    /// A folder can be named `something.md`; it is not a document.
+    #[test]
+    fn a_directory_with_a_markdown_name_is_not_a_document() {
+        let directory = scratch("directory");
+        let folder = directory.join("fixtures.md");
+        std::fs::create_dir_all(&folder).expect("create folder");
+
+        assert!(matches!(
+            validate_document_path(&folder.to_string_lossy()),
+            Err(DocumentError::NotAFile)
+        ));
+
+        std::fs::remove_dir_all(&directory).ok();
+    }
+
+    /// The extension policy must apply to the file that is finally read, not to
+    /// the name the reader clicked. Otherwise a symlink lends `.md` to anything.
+    #[cfg(unix)]
+    #[test]
+    fn a_symlink_cannot_lend_a_markdown_extension_to_another_format() {
+        use std::os::unix::fs::symlink;
+
+        let base = std::env::temp_dir().join("markdown-preview-test-symlink-extension");
+        let _ = std::fs::remove_dir_all(&base);
+        std::fs::create_dir_all(&base).expect("base directory");
+
+        let payload = base.join("payload.txt");
+        std::fs::write(&payload, "not a document").expect("write payload");
+        let link = base.join("innocent.md");
+        symlink(&payload, &link).expect("create symlink");
+
+        match validate_document_path(&link.to_string_lossy()) {
+            Err(DocumentError::UnsupportedExtension { extension }) => {
+                assert_eq!(extension, "txt")
+            }
+            other => panic!("expected UnsupportedExtension, got {other:?}"),
+        }
+
+        std::fs::remove_dir_all(&base).ok();
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn a_symlink_cannot_lend_a_markdown_extension_to_another_format() {
+        use std::os::windows::fs::symlink_file;
+
+        let base = std::env::temp_dir().join("markdown-preview-test-symlink-extension");
+        let _ = std::fs::remove_dir_all(&base);
+        std::fs::create_dir_all(&base).expect("base directory");
+
+        let payload = base.join("payload.txt");
+        std::fs::write(&payload, "not a document").expect("write payload");
+        let link = base.join("innocent.md");
+        if symlink_file(&payload, &link).is_err() {
+            // Creating symlinks needs Developer Mode or elevation.
+            return;
+        }
+
+        assert!(matches!(
+            validate_document_path(&link.to_string_lossy()),
+            Err(DocumentError::UnsupportedExtension { .. })
+        ));
+
+        std::fs::remove_dir_all(&base).ok();
+    }
+
+    /// macOS file names are bytes, not UTF-8. A `.md` suffix must still be
+    /// recognised so such a file can be opened and watched.
+    #[cfg(unix)]
+    #[test]
+    fn a_non_utf8_name_with_a_markdown_suffix_is_still_markdown() {
+        use std::ffi::OsStr;
+        use std::os::unix::ffi::OsStrExt;
+
+        let document = PathBuf::from("/tmp").join(OsStr::from_bytes(b"notes-\xff.md"));
+        assert!(is_markdown(&document));
+        assert_eq!(extension_of(&document), "md");
+
+        let other = PathBuf::from("/tmp").join(OsStr::from_bytes(b"notes-\xff.txt"));
+        assert!(!is_markdown(&other));
+    }
+
+    /// A refused read must be reported once, not retried like a half-written
+    /// file: macOS TCC denies access to protected folders until the reader
+    /// grants it, and no number of retries changes that.
+    #[cfg(unix)]
+    #[test]
+    fn a_document_the_system_refuses_to_read_is_reported_as_denied() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let directory = scratch("permissions");
+        let path = directory.join("locked.md");
+        std::fs::write(&path, "# locked").expect("write");
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o000)).expect("chmod");
+
+        // Root ignores the permission bits; on such a machine there is nothing
+        // to assert, so the read result is inspected rather than assumed.
+        if let Err(error) = read_document(&path) {
+            assert!(
+                matches!(error, DocumentError::Denied { .. }),
+                "got {error:?}"
+            );
+            assert_eq!(error.code(), "denied");
+            assert!(!error.is_retryable());
+        }
+
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600)).ok();
+        std::fs::remove_dir_all(&directory).ok();
+    }
+
+    /// APFS and HFS+ compare names normalization-insensitively, so a Markdown
+    /// reference typed in precomposed form must resolve a decomposed on-disk
+    /// name. This can only be shown on a Mac.
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn a_precomposed_reference_resolves_a_decomposed_macos_name() {
+        let directory = scratch("unicode-normalization");
+        let decomposed = "Cafe\u{301}.png";
+        let precomposed = "Café.png";
+        assert_ne!(decomposed, precomposed);
+        std::fs::write(directory.join(decomposed), b"png").expect("write");
+
+        let resolved = canonicalize(&directory.join(precomposed)).expect("resolve");
+        assert_eq!(std::fs::read(resolved).expect("read"), b"png");
+
+        std::fs::remove_dir_all(&directory).ok();
     }
 }

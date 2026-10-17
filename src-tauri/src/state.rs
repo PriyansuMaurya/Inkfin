@@ -37,6 +37,21 @@ pub struct ActiveDocument {
     pub loaded_assets: HashSet<PathBuf>,
 }
 
+/// A launch request waiting for the webview to drain it.
+///
+/// `sequence` is monotonic for the whole session. The frontend applies the
+/// newest sequence it has seen and ignores anything older, so a request that
+/// was overtaken while the webview was still starting cannot replace a document
+/// the reader has already moved on from.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LaunchRequest {
+    pub sequence: u64,
+    /// Canonical path of a readable document, or the original text when the
+    /// file could not be resolved (the open command then reports why).
+    pub path: String,
+}
+
 /// Everything the native bridge remembers between commands.
 ///
 /// A new open allocates a fresh, monotonically increasing generation. Every
@@ -47,7 +62,11 @@ pub struct ActiveDocument {
 pub struct AppState {
     document: Mutex<Option<ActiveDocument>>,
     watcher: Mutex<Option<RecommendedWatcher>>,
-    pending_launch: Mutex<Vec<String>>,
+    /// The most recent OS launch request. Only one document is ever on screen,
+    /// so an earlier request that has not been drained is superseded rather
+    /// than queued behind the newer one.
+    pending_launch: Mutex<Option<LaunchRequest>>,
+    launch_sequence: AtomicU64,
     generation: AtomicU64,
 }
 
@@ -189,20 +208,84 @@ impl AppState {
         }
     }
 
-    pub fn push_pending_launch(&self, path: String) {
+    /// Queue the newest OS launch request and return it.
+    ///
+    /// Replacing the pending value is deliberate: opening two documents from
+    /// Finder must end on the second one, and showing the first only because it
+    /// happened to be queued earlier would flash a document the reader never
+    /// asked to read. A launch that arrives before the webview listens is still
+    /// kept, because the value survives until the frontend drains it.
+    pub fn queue_launch(&self, path: String) -> LaunchRequest {
+        let sequence = self.launch_sequence.fetch_add(1, Ordering::SeqCst) + 1;
+        let request = LaunchRequest { sequence, path };
         if let Ok(mut guard) = self.pending_launch.lock() {
-            guard.push(path);
+            *guard = Some(request.clone());
         }
+        request
     }
 
-    /// Queued launch paths survive until the frontend drains them, so a launch
-    /// that arrives before the webview is listening is never discarded.
-    pub fn take_pending_launch(&self) -> Option<String> {
-        let mut guard = self.pending_launch.lock().ok()?;
-        if guard.is_empty() {
-            None
-        } else {
-            Some(guard.remove(0))
-        }
+    /// Consume the pending launch, if any. Taking it clears the queue, so the
+    /// same request is opened once even if several nudges arrive.
+    pub fn take_pending_launch(&self) -> Option<LaunchRequest> {
+        self.pending_launch
+            .lock()
+            .ok()
+            .and_then(|mut guard| guard.take())
+    }
+
+    #[cfg(test)]
+    pub fn queue_len(&self) -> usize {
+        self.pending_launch
+            .lock()
+            .map(|guard| usize::from(guard.is_some()))
+            .unwrap_or(0)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_newest_launch_wins_when_none_has_been_drained() {
+        let state = AppState::default();
+
+        let first = state.queue_launch("/docs/first.md".to_string());
+        let second = state.queue_launch("/docs/second.md".to_string());
+
+        assert_eq!(state.queue_len(), 1, "only one document can be shown");
+        assert!(second.sequence > first.sequence, "sequences are monotonic");
+
+        let drained = state.take_pending_launch().expect("pending launch");
+        assert_eq!(drained.path, "/docs/second.md");
+        assert_eq!(drained.sequence, second.sequence);
+    }
+
+    #[test]
+    fn draining_clears_the_queue_so_a_repeated_nudge_opens_nothing() {
+        let state = AppState::default();
+        state.queue_launch("/docs/readme.md".to_string());
+
+        assert!(state.take_pending_launch().is_some());
+        assert_eq!(state.queue_len(), 0);
+        assert!(state.take_pending_launch().is_none());
+    }
+
+    #[test]
+    fn sequences_keep_increasing_across_drains() {
+        let state = AppState::default();
+
+        let first = state.queue_launch("/docs/a.md".to_string());
+        let drained_first = state.take_pending_launch().expect("first launch");
+        let second = state.queue_launch("/docs/b.md".to_string());
+        let drained_second = state.take_pending_launch().expect("second launch");
+
+        assert_eq!(drained_first.sequence, first.sequence);
+        assert_eq!(drained_second.sequence, second.sequence);
+        assert!(
+            drained_second.sequence > drained_first.sequence,
+            "a request queued after a drain must not look older"
+        );
+        assert_eq!(drained_second.path, "/docs/b.md");
     }
 }

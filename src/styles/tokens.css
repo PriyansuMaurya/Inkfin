@@ -74,7 +74,8 @@
     'Helvetica Neue', sans-serif;
   --k-font-document:
     'Inter', 'Segoe UI Variable Text', 'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif;
-  --k-font-code: 'Cascadia Code', 'Cascadia Mono', Consolas, 'Courier New', monospace;
+  --k-font-code:
+    'Cascadia Code', 'Cascadia Mono', Consolas, 'SF Mono', Menlo, Monaco, 'Courier New', monospace;
 
   --k-font-size-toolbar: 13px;
   --k-line-height-toolbar: 18px;
@@ -158,6 +159,25 @@
   --k-popover-shadow: 0 10px 28px rgba(0, 0, 0, 0.5);
 }
 
+/*
+ * macOS typography.
+ *
+ * The Windows stack begins with Segoe faces that do not exist on macOS, so the
+ * UI there would silently depend on whatever `system-ui` aliases to. Naming the
+ * system faces keeps the type identical across macOS releases and keeps the
+ * three families consistent: SF Pro for UI and document text, SF Mono for code
+ * (the code stack already listed SF Mono, but after faces that never resolve on
+ * macOS). Inter is not bundled, so the document keeps falling back to the system
+ * sans exactly as it does today, without a remote font request.
+ */
+[data-platform='macos'] {
+  --k-font-ui:
+    -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', system-ui, sans-serif;
+  --k-font-document:
+    -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', system-ui, sans-serif;
+  --k-font-code: 'SF Mono', ui-monospace, Menlo, Monaco, 'Cascadia Code', Consolas, monospace;
+}
+
 @media (prefers-reduced-motion: reduce) {
   :root {
     --k-duration-fast: 0ms;
@@ -200,29 +220,37 @@ body {
   color: var(--k-selection-text);
 }
 
-/* Quiet scrollbars so the chrome stays understated. */
-* {
+/*
+ * Quiet scrollbars so the chrome stays understated — Windows and Linux only.
+ *
+ * macOS keeps its native overlay scrollbars. They appear while scrolling, hide
+ * again, and take no layout width; forcing a 10 px track there would look
+ * foreign and would inset the 760 px reading column. `scrollbar-width` also only
+ * reached WebKit in Safari 18.2, so relying on it for macOS would be a coin
+ * toss per OS version.
+ */
+html:not([data-platform='macos']) * {
   scrollbar-width: thin;
   scrollbar-color: var(--k-border) transparent;
 }
 
-*::-webkit-scrollbar {
+html:not([data-platform='macos']) *::-webkit-scrollbar {
   width: 10px;
   height: 10px;
 }
 
-*::-webkit-scrollbar-track {
+html:not([data-platform='macos']) *::-webkit-scrollbar-track {
   background: transparent;
 }
 
-*::-webkit-scrollbar-thumb {
+html:not([data-platform='macos']) *::-webkit-scrollbar-thumb {
   background: var(--k-border);
   border: 3px solid transparent;
   border-radius: 999px;
   background-clip: content-box;
 }
 
-*::-webkit-scrollbar-thumb:hover {
+html:not([data-platform='macos']) *::-webkit-scrollbar-thumb:hover {
   background: var(--k-muted);
   background-clip: content-box;
 }

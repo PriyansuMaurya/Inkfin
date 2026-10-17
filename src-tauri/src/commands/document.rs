@@ -11,7 +11,7 @@ use tauri::{AppHandle, Manager, State};
 
 use crate::errors::DocumentError;
 use crate::services::{paths, watch};
-use crate::state::{AppState, DocumentSnapshot};
+use crate::state::{AppState, DocumentSnapshot, LaunchRequest};
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -80,10 +80,14 @@ fn install(
     }
 
     // A failed watch is not fatal: the reader still has a valid document, it
-    // simply will not refresh until the file is reopened.
-    match watch::spawn(app.clone(), generation, canonical) {
+    // simply will not refresh until the file is reopened. They are told once so
+    // a silently stale preview is never mistaken for a save that did not land.
+    match watch::spawn(app.clone(), generation, canonical.clone()) {
         Ok(watcher) => state.set_watcher(watcher),
-        Err(_) => state.clear_watcher(),
+        Err(error) => {
+            state.clear_watcher();
+            watch::report_watch_failure(app, generation, &canonical, &error);
+        }
     }
 
     Ok(snapshot)
@@ -95,6 +99,32 @@ pub fn open_document(app: AppHandle, path: String) -> Result<DocumentSnapshot, D
     let canonical = paths::validate_document_path(&path)?;
     let content = paths::read_document(&canonical)?;
     install(&app, canonical, content)
+}
+
+/// Resolve a relative Markdown link to a readable target inside `root`.
+///
+/// `root` is the active document's canonical folder. Traversal, absolute paths
+/// and remote schemes are refused by the reference parser; symlinks are resolved
+/// before containment is checked, so an in-folder link cannot point out of it.
+/// The Markdown policy is then applied to the resolved file rather than to the
+/// link text, so a link to `notes.txt` is refused even when it is spelled
+/// `notes.md`.
+pub fn resolve_linked_document(root: &Path, link_path: &str) -> Result<PathBuf, DocumentError> {
+    let relative = paths::safe_relative_path(link_path)?;
+    let canonical = paths::canonicalize(&root.join(relative))?;
+
+    if !paths::is_within(root, &canonical) {
+        return Err(DocumentError::Denied {
+            reason: "linked documents must live inside the current document's folder".to_string(),
+        });
+    }
+    if !paths::is_markdown(&canonical) {
+        return Err(DocumentError::UnsupportedExtension {
+            extension: paths::extension_of(&canonical),
+        });
+    }
+
+    Ok(canonical)
 }
 
 /// Follow a relative Markdown link from the active document.
@@ -123,20 +153,7 @@ pub fn open_linked_document(
         return Ok(LinkedDocument { snapshot, fragment });
     }
 
-    let relative = paths::safe_relative_path(&path_part)?;
-    let canonical = paths::canonicalize(&root.join(relative))?;
-
-    if !paths::is_within(&root, &canonical) {
-        return Err(DocumentError::Denied {
-            reason: "linked documents must live inside the current document's folder".to_string(),
-        });
-    }
-    if !paths::is_markdown(&canonical) {
-        return Err(DocumentError::UnsupportedExtension {
-            extension: paths::extension_of(&canonical),
-        });
-    }
-
+    let canonical = resolve_linked_document(&root, &path_part)?;
     let content = paths::read_document(&canonical)?;
     let snapshot = install(&app, canonical, content)?;
     Ok(LinkedDocument { snapshot, fragment })
@@ -189,9 +206,14 @@ pub fn active_document(state: State<'_, AppState>) -> Option<DocumentSnapshot> {
     state.snapshot()
 }
 
-/// Consume one queued Explorer or second-instance launch path.
+/// Consume the queued OS launch request, if one is waiting.
+///
+/// The frontend drains this on mount and on every launch event, so a Finder
+/// open that arrived before the webview was ready is still applied. The request
+/// carries the sequence it was queued with, which lets the webview ignore a
+/// request that a newer one has already overtaken.
 #[tauri::command]
-pub fn get_pending_launch(state: State<'_, AppState>) -> Option<String> {
+pub fn get_pending_launch(state: State<'_, AppState>) -> Option<LaunchRequest> {
     state.take_pending_launch()
 }
 
@@ -253,6 +275,7 @@ mod tests {
         );
     }
 
+    #[cfg(windows)]
     #[test]
     fn snapshots_expose_the_parent_folder_as_the_root() {
         let (snapshot, base) = build_snapshot(
@@ -267,5 +290,185 @@ mod tests {
         assert_eq!(snapshot.base_directory, r"C:\docs\project");
         assert_eq!(base, PathBuf::from(r"C:\docs\project"));
         assert_eq!(snapshot.revision.len(), 32);
+    }
+
+    #[cfg(not(windows))]
+    #[test]
+    fn snapshots_use_the_posix_parent_folder() {
+        let (snapshot, base) = build_snapshot(
+            Path::new("/Users/test/docs/README.md"),
+            "# Title".to_string(),
+            7,
+        )
+        .expect("snapshot");
+
+        assert_eq!(snapshot.name, "README.md");
+        assert_eq!(snapshot.generation, 7);
+        assert_eq!(snapshot.base_directory, "/Users/test/docs");
+        assert_eq!(base, PathBuf::from("/Users/test/docs"));
+        assert_eq!(snapshot.revision.len(), 32);
+    }
+
+    /// A canonical fixture folder, unique per test so the parallel runner does
+    /// not let two tests share one directory.
+    fn links_fixture(name: &str) -> PathBuf {
+        let directory =
+            std::env::temp_dir().join(format!("inkfin-links-{}-{}", name, std::process::id()));
+        let _ = std::fs::remove_dir_all(&directory);
+        std::fs::create_dir_all(directory.join("notes")).expect("create fixture folder");
+        paths::canonicalize(&directory).expect("canonical fixture folder")
+    }
+
+    #[test]
+    fn links_resolve_spaces_unicode_and_percent_encoding_inside_the_folder() {
+        let root = links_fixture("names");
+        std::fs::write(root.join("Guide Notes.md"), "# Guide").expect("write");
+        std::fs::write(root.join("notes/Résumé 2026.md"), "# Résumé").expect("write");
+
+        assert_eq!(
+            resolve_linked_document(&root, "Guide%20Notes.md").expect("encoded spaces"),
+            root.join("Guide Notes.md")
+        );
+        assert_eq!(
+            resolve_linked_document(&root, "notes/Résumé 2026.md").expect("unicode name"),
+            root.join("notes/Résumé 2026.md")
+        );
+
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn links_cannot_leave_the_folder_or_change_format() {
+        let root = links_fixture("policy");
+        std::fs::write(root.join("other.txt"), "not markdown").expect("write");
+        std::fs::write(root.join("notes/chapter.markdown"), "# Chapter").expect("write");
+
+        for refused in [
+            "../outside.md",
+            "notes/../../outside.md",
+            "/etc/passwd",
+            "https://example.com/README.md",
+            "javascript:alert(1)",
+            "file:///tmp/README.md",
+            "other.txt",
+        ] {
+            assert!(
+                resolve_linked_document(&root, refused).is_err(),
+                "{refused} must be refused"
+            );
+        }
+
+        assert_eq!(
+            resolve_linked_document(&root, "notes/chapter.markdown").expect("markdown link"),
+            root.join("notes/chapter.markdown")
+        );
+
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn a_link_to_a_missing_file_or_a_folder_is_reported() {
+        let root = links_fixture("missing");
+        std::fs::create_dir_all(root.join("bundle.md")).expect("folder named like a document");
+
+        assert!(matches!(
+            resolve_linked_document(&root, "gone.md"),
+            Err(DocumentError::NotFound)
+        ));
+
+        // Resolution succeeds because the name is Markdown; the read is what
+        // reports that a folder cannot be shown as a document.
+        let folder = resolve_linked_document(&root, "bundle.md").expect("resolves");
+        assert!(matches!(
+            paths::read_document(&folder),
+            Err(DocumentError::NotAFile)
+        ));
+
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    /// A link inside the folder that resolves outside it must not be followed,
+    /// and one that resolves to another format must not be read as Markdown.
+    #[cfg(unix)]
+    #[test]
+    fn links_through_symlinks_keep_the_folder_and_format_policy() {
+        use std::os::unix::fs::symlink;
+
+        let root = links_fixture("symlink");
+        let secret = root
+            .parent()
+            .expect("parent")
+            .join(format!("inkfin-links-secret-{}.md", std::process::id()));
+        std::fs::write(&secret, "# secret").expect("write secret");
+        std::fs::write(root.join("payload.txt"), "text").expect("write payload");
+        symlink(&secret, root.join("escape.md")).expect("symlink out");
+        symlink(root.join("payload.txt"), root.join("renamed.md")).expect("symlink format");
+
+        assert!(matches!(
+            resolve_linked_document(&root, "escape.md"),
+            Err(DocumentError::Denied { .. })
+        ));
+        assert!(matches!(
+            resolve_linked_document(&root, "renamed.md"),
+            Err(DocumentError::UnsupportedExtension { .. })
+        ));
+
+        std::fs::remove_file(&secret).ok();
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn links_through_symlinks_keep_the_folder_and_format_policy() {
+        use std::os::windows::fs::symlink_file;
+
+        let root = links_fixture("symlink");
+        let secret = root
+            .parent()
+            .expect("parent")
+            .join(format!("inkfin-links-secret-{}.md", std::process::id()));
+        std::fs::write(&secret, "# secret").expect("write secret");
+        std::fs::write(root.join("payload.txt"), "text").expect("write payload");
+        if symlink_file(&secret, root.join("escape.md")).is_err()
+            || symlink_file(root.join("payload.txt"), root.join("renamed.md")).is_err()
+        {
+            // Creating symlinks needs Developer Mode or elevation.
+            std::fs::remove_file(&secret).ok();
+            std::fs::remove_dir_all(&root).ok();
+            return;
+        }
+
+        assert!(matches!(
+            resolve_linked_document(&root, "escape.md"),
+            Err(DocumentError::Denied { .. })
+        ));
+        assert!(matches!(
+            resolve_linked_document(&root, "renamed.md"),
+            Err(DocumentError::UnsupportedExtension { .. })
+        ));
+
+        std::fs::remove_file(&secret).ok();
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    /// The security rule: a document may open a web page, never a local file or
+    /// an executable scheme. Only refusal paths are exercised, so no browser is
+    /// launched by the test suite.
+    #[test]
+    fn only_http_and_https_links_can_reach_the_operating_system() {
+        for refused in [
+            "javascript:alert(1)",
+            "file:///etc/passwd",
+            "data:text/html,<script>alert(1)</script>",
+            "mailto:someone@example.com",
+            "ms-settings:privacy",
+            "not a url",
+            "http://",
+        ] {
+            assert!(
+                open_external_link(refused.to_string()).is_err(),
+                "{refused} must not be handed to the OS"
+            );
+        }
     }
 }

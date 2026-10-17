@@ -333,8 +333,11 @@
 }
 
 .code-copy {
-  height: 26px;
-  min-width: 26px;
+  /* 28 px is the smallest comfortable target on macOS; measured at 100 % zoom,
+     the header keeps 5 px of clearance around the shared focus ring (4 px at
+     the 75 % zoom floor), so the ring needs no override here. */
+  height: 28px;
+  min-width: 28px;
   padding: 0 0.5em;
   gap: 0.35em;
   border-radius: 6px;

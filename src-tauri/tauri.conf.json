@@ -55,7 +55,9 @@
         "name": "Markdown Document",
         "description": "Markdown document",
         "mimeType": "text/markdown",
-        "role": "Viewer"
+        "role": "Viewer",
+        "rank": "Default",
+        "contentTypes": ["net.daringfireball.markdown"]
       }
     ],
     "windows": {

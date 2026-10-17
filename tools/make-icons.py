@@ -32,8 +32,8 @@ def main() -> None:
     master.resize((256, 256), Image.LANCZOS).save(
         OUT / "icon.ico", format="ICO", sizes=ico_sizes
     )
-    # Tauri's Windows bundler also looks for icon.icns only on macOS, which is
-    # out of scope for this MVP.
+    # The macOS bundler requires ICNS; Windows continues to use icon.ico.
+    master.resize((1024, 1024), Image.LANCZOS).save(OUT / "icon.icns", format="ICNS")
 
     print("generated:")
     for path in sorted(OUT.iterdir()):

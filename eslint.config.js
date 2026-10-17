@@ -12,7 +12,16 @@ import tseslint from 'typescript-eslint';
  */
 export default tseslint.config(
   {
-    ignores: ['dist/**', 'node_modules/**', 'src-tauri/target/**', 'tools/**'],
+    ignores: [
+      'dist/**',
+      'node_modules/**',
+      'src-tauri/target/**',
+      'tools/**',
+      // The marketing site is a separate browser project with its own build and
+      // no Node/browser globals configured here. Linting its bundle produced
+      // false `no-undef` errors that masked the app's own lint result.
+      'website/**',
+    ],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,

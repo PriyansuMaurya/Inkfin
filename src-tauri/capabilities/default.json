@@ -1,7 +1,8 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Minimum permissions the reading surface needs: window/event plumbing, the native open dialog and local preference storage. No filesystem or shell plugin is granted.",
+  "description": "Minimum permissions the reading surface needs on desktop: window/event plumbing, the native open dialog and local preference storage. No filesystem or shell plugin is granted, so the webview can only read what the Rust commands validate.",
+  "platforms": ["windows", "macOS"],
   "windows": ["main"],
   "permissions": [
     "core:default",

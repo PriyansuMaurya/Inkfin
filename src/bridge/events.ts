@@ -23,9 +23,28 @@ export type DocumentUnavailableEvent = {
   reason: string;
 };
 
+/** A file that was reported missing is readable again with unchanged content. */
+export type DocumentRecoveredEvent = {
+  generation: number;
+  path: string;
+};
+
+/**
+ * The document opened but its folder could not be watched, so automatic
+ * refresh is off. macOS refuses the folder around a file the reader picked from
+ * a protected location even though the file itself is readable.
+ */
+export type DocumentWatchFailedEvent = {
+  generation: number;
+  path: string;
+  reason: string;
+};
+
 const DOCUMENT_CHANGED = 'document_changed';
 const DOCUMENT_MISSING = 'document_missing';
 const DOCUMENT_UNAVAILABLE = 'document_unavailable';
+const DOCUMENT_RECOVERED = 'document_recovered';
+const DOCUMENT_WATCH_FAILED = 'document_watch_failed';
 const LAUNCH_REQUESTED = 'launch_requested';
 
 function parseChanged(payload: unknown): DocumentChangedEvent | null {
@@ -35,6 +54,14 @@ function parseChanged(payload: unknown): DocumentChangedEvent | null {
   const revision = readString(payload, 'revision');
   if (generation === null || path === null || revision === null) return null;
   return { generation, path, revision };
+}
+
+function parseRecovered(payload: unknown): DocumentRecoveredEvent | null {
+  if (!isRecord(payload)) return null;
+  const generation = readNumber(payload, 'generation');
+  const path = readString(payload, 'path');
+  if (generation === null || path === null) return null;
+  return { generation, path };
 }
 
 function parseUnavailable(payload: unknown): DocumentUnavailableEvent | null {
@@ -47,7 +74,9 @@ function parseUnavailable(payload: unknown): DocumentUnavailableEvent | null {
 }
 
 /** Fires when the file on disk differs from the revision on screen. */
-export function onDocumentChanged(handler: (event: DocumentChangedEvent) => void): Promise<UnlistenFn> {
+export function onDocumentChanged(
+  handler: (event: DocumentChangedEvent) => void,
+): Promise<UnlistenFn> {
   return listen<unknown>(DOCUMENT_CHANGED, (event) => {
     const parsed = parseChanged(event.payload);
     if (parsed) handler(parsed);
@@ -59,6 +88,29 @@ export function onDocumentMissing(
   handler: (event: DocumentUnavailableEvent) => void,
 ): Promise<UnlistenFn> {
   return listen<unknown>(DOCUMENT_MISSING, (event) => {
+    const parsed = parseUnavailable(event.payload);
+    if (parsed) handler(parsed);
+  });
+}
+
+/**
+ * Fires when a file that was reported missing is readable again without having
+ * changed on disk, so the stale warning can be withdrawn.
+ */
+export function onDocumentRecovered(
+  handler: (event: DocumentRecoveredEvent) => void,
+): Promise<UnlistenFn> {
+  return listen<unknown>(DOCUMENT_RECOVERED, (event) => {
+    const parsed = parseRecovered(event.payload);
+    if (parsed) handler(parsed);
+  });
+}
+
+/** Fires once when the open document's folder cannot be watched. */
+export function onDocumentWatchFailed(
+  handler: (event: DocumentWatchFailedEvent) => void,
+): Promise<UnlistenFn> {
+  return listen<unknown>(DOCUMENT_WATCH_FAILED, (event) => {
     const parsed = parseUnavailable(event.payload);
     if (parsed) handler(parsed);
   });

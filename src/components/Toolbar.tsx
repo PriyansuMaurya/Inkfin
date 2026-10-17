@@ -9,6 +9,7 @@
 
 import { FileText, FolderOpen, Minus, Plus, RotateCw, Search } from 'lucide-react';
 
+import { formatShortcut } from '../features/platform/platform';
 import type { ResolvedTheme, ThemePreference } from '../features/preferences/preferences';
 import { formatZoom } from '../features/preferences/preferences';
 import { ThemeMenu } from './ThemeMenu';
@@ -61,7 +62,7 @@ export function Toolbar({
         className="btn btn-open-file"
         onClick={onOpen}
         disabled={busy}
-        title="Open a Markdown file (Ctrl+O)"
+        title={`Open a Markdown file (${formatShortcut('O')})`}
       >
         <FolderOpen size={16} aria-hidden="true" />
         <span className="btn-label">Open</span>
@@ -85,7 +86,7 @@ export function Toolbar({
             type="button"
             className="btn btn-icon"
             onClick={onReload}
-            title="Reload from disk (Ctrl+R)"
+            title={`Reload from disk (${formatShortcut('R')})`}
             aria-label="Reload from disk"
           >
             <RotateCw size={16} aria-hidden="true" />
@@ -102,7 +103,7 @@ export function Toolbar({
           className="btn btn-icon"
           onClick={onSearch}
           aria-pressed={searchOpen}
-          title="Find in document (Ctrl+F)"
+          title={`Find in document (${formatShortcut('F')})`}
           aria-label="Find in document"
         >
           <Search size={16} aria-hidden="true" />
@@ -115,7 +116,7 @@ export function Toolbar({
           className="btn btn-icon"
           onClick={onZoomOut}
           disabled={!canZoomOut}
-          title="Zoom out (Ctrl+-)"
+          title={`Zoom out (${formatShortcut('-')})`}
           aria-label="Zoom out"
         >
           <Minus size={16} aria-hidden="true" />
@@ -124,7 +125,7 @@ export function Toolbar({
           type="button"
           className="btn zoom-value"
           onClick={onResetZoom}
-          title="Reset zoom to 100% (Ctrl+0)"
+          title={`Reset zoom to 100% (${formatShortcut('0')})`}
           aria-label={`Document zoom ${formatZoom(zoom)}. Reset to 100%`}
         >
           {formatZoom(zoom)}
@@ -134,7 +135,7 @@ export function Toolbar({
           className="btn btn-icon"
           onClick={onZoomIn}
           disabled={!canZoomIn}
-          title="Zoom in (Ctrl++)"
+          title={`Zoom in (${formatShortcut('+')})`}
           aria-label="Zoom in"
         >
           <Plus size={16} aria-hidden="true" />

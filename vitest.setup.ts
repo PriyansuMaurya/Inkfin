@@ -72,3 +72,22 @@ globalWithCss.CSS = { highlights: new HighlightRegistryStub() };
 if (typeof Element.prototype.scrollIntoView !== 'function') {
   Element.prototype.scrollIntoView = () => {};
 }
+
+/**
+ * jsdom implements no media queries at all. The preferences hook listens to the
+ * OS appearance, so a minimal stub keeps that effect mountable in tests. The
+ * returned list never matches, which lets a test choose a theme explicitly
+ * instead of depending on the host machine's appearance.
+ */
+if (typeof window.matchMedia !== 'function') {
+  window.matchMedia = ((query: string) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    addListener: () => {},
+    removeListener: () => {},
+    dispatchEvent: () => false,
+  })) as unknown as typeof window.matchMedia;
+}
