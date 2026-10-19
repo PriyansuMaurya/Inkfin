@@ -18,3 +18,27 @@
 .button.disabled{justify-content:center;border:1px solid var(--strong);background:transparent;color:var(--faint);cursor:not-allowed}
 .button.disabled:hover{background:transparent;transform:none}
 @media(max-width:960px){.platforms{grid-template-columns:1fr}}
+.platform{min-width:0;gap:16px;transition:border-color .18s,transform .18s}
+.platform:hover{border-color:var(--strong);transform:translateY(-2px)}
+.plat-head{min-height:42px}
+.platform-icon{display:block;flex:0 0 32px;width:32px;height:32px}
+.windows-icon{color:#65b8ff}
+.macos-icon{display:grid;place-items:center;border:1px solid var(--strong);border-radius:9px;color:#e7e3ef;font:500 25px/1 'DM Sans',sans-serif}
+.plat-title{min-width:0;flex:1}
+.platform-version{display:block;margin-top:5px;color:var(--faint);font-size:11px;line-height:1.4}
+.status{flex:0 0 auto}
+.platform-shot{overflow:hidden;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+.platform-shot img{width:100%;aspect-ratio:16/9;object-fit:cover;object-position:top center}
+.platform-shot figcaption{padding:8px 11px;border-top:1px solid var(--line);color:var(--faint);font-size:11px}
+.platform .req{min-height:0;margin:0;color:var(--muted);line-height:1.6}
+.platform .button{width:100%;margin-top:auto}
+.test-only{background:#e2d9ff14;color:#d2c8e5}
+.macos-status{padding:16px;border:1px solid var(--strong);border-radius:10px;background:#0d0b1680}
+.macos-status strong{font:500 15px/1.4 'DM Sans',sans-serif;color:var(--ink)}
+.macos-status p{margin:9px 0 0;font-size:12px;line-height:1.65}
+.macos-screenshot-note{display:block;margin-top:13px;padding-top:11px;border-top:1px solid var(--line);color:var(--faint);font-size:11px;line-height:1.5}
+.macos-req{color:var(--faint)!important}
+.platform .button:focus-visible,.navdl:focus-visible,nav a:focus-visible,footer a:focus-visible{outline-color:#a8d6ff}
+nav a:hover,footer a:hover,.actions>a:last-child:hover{color:var(--ink)}
+@media(max-width:700px){.platform{padding:18px}.platform-shot img{aspect-ratio:16/10}.plat-head{gap:9px}.status{font-size:10px}}
+@media(prefers-reduced-motion:reduce){.platform{transition:none}.platform:hover{transform:none}}
