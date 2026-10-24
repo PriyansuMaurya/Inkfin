@@ -120,3 +120,19 @@ Evidence key used below:
 
 ## Definition of done per task
 Working code + relevant verification + no broadened permission or product scope + updated task status. A checkbox is not evidence of an installer-level behaviour until tested in a packaged Windows build.
+
+
+## Microsoft Store preparation — 24 October 2026
+
+- [x] Prepare separate MSIX manifest, identity validation and Windows build workflow; MakeAppx build passed in run 40123888589.
+- [x] Derive package logos and a 300×300 listing icon from the existing artwork.
+- [x] Prepare listing/certification text and app privacy/support pages.
+- [x] Build website and validate the static-assets Cloudflare deployment configuration with a dry run.
+- [x] Push changes and execute the Windows MSIX workflow using the reserved Partner Center identity. - run 40123888589, artifact inkfin-microsoft-store-x64; checksum/block map/x64/unsigned-format verified.
+- [ ] Test MSIX installation, both file associations, coexistence, offline use, update/removal and WACK on Windows.
+- [ ] Capture current Store screenshots (at least 1366×768 PNG); existing screenshots are smaller.
+- [ ] Deploy privacy/support pages to the existing Cloudflare project and verify their live URLs.
+- [ ] Complete publisher verification/declarations, submit to Microsoft, and verify a live Store listing.
+
+- [x] Remove the completed temporary preparation workflow after publishing the source branch. - commit 47c8676.
+- [x] Add disposable-runner MSIX installation/rendering validation, with ephemeral signing of a test copy and cleanup. - store-validation.yml; execution result pending.

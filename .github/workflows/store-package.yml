@@ -1,0 +1,54 @@
+name: Build Microsoft Store MSIX
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [publish/microsoft-store]
+    paths: [.github/workflows/store-package.yml]
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+          components: rustfmt, clippy
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run lint
+      - run: cargo fmt --manifest-path src-tauri/Cargo.toml --check
+      - run: cargo test --manifest-path src-tauri/Cargo.toml --locked
+      - run: cargo clippy --manifest-path src-tauri/Cargo.toml --locked --all-targets -- -D warnings
+      - name: Build application without the NSIS installer
+        run: npx tauri build --target x86_64-pc-windows-msvc --no-bundle --ci
+      - name: Create MSIX using the reserved Store identity
+        shell: pwsh
+        run: |
+          $version = (Get-Content src-tauri/tauri.conf.json -Raw | ConvertFrom-Json).version
+          ./tools/windows/package-store.ps1 -IdentityFile packaging/store/identity.json
+          @{
+            commit = $env:GITHUB_SHA
+            run = "$env:GITHUB_SERVER_URL/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID"
+            version = "$version.0"
+            windowsInstallTest = 'NOT RUN'
+            wack = 'NOT RUN'
+          } | ConvertTo-Json | Set-Content artifacts/store/build-evidence.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: inkfin-microsoft-store-x64
+          path: artifacts/store/
+          if-no-files-found: error
+          retention-days: 30
