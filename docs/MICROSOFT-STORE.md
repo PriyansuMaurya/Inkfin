@@ -5,10 +5,10 @@ Prepared 24 October 2026 from main commit `367cb75e6c74cb7e7f59be7aa742ef85f2b4a
 ## Current state
 
 - The existing `v0.1.2` release contains the unsigned NSIS Windows installer.
-- The repository now contains a separate MakeAppx MSIX path. The Tauri application is built with `--no-bundle`; the NSIS installer and its registry hooks are not wrapped inside the MSIX.
+- The publishing branch now contains a separate MakeAppx MSIX path. The Tauri application is built with `--no-bundle`; the NSIS installer and its registry hooks are not wrapped inside the MSIX.
 - Microsoft signs MSIX packages submitted to the Store; a purchased code-signing certificate is unnecessary for this route. The traditional EXE route still needs trusted Authenticode signing and an offline installer, so the existing unsigned/bootstrapper EXE is not a substitute.
 - The Store manifest initially targets x64 Windows 11 (`10.0.22000.0`). This narrows only the new Store distribution, to use the system WebView2 runtime. The standalone EXE configuration remains as it was. Do not lower the manifest floor or advertise Windows 10 Store support without deciding and validating runtime provisioning on clean Windows 10. The MSIX does not install WebView2.
-- MSIX build, Windows installation, WACK and Store certification have **not** been run in this workspace. Linux frontend checks do not establish MSIX readiness.
+- Windows MSIX build and MakeAppx validation **passed** in GitHub Actions run 40123888589. Windows installation, WACK and Store certification have **not** been run. Build success does not establish MSIX runtime readiness.
 
 ## 1. Microsoft account and reserved identity
 
@@ -132,3 +132,21 @@ After certification succeeds and the listing is public, copy the **actual** prod
 - File activation extensions: https://learn.microsoft.com/en-us/windows/apps/desktop/modernize/desktop-to-uwp-extensions
 - Tauri Store guide (EXE/MSI route): https://v2.tauri.app/distribute/microsoft-store/
 - Cloudflare custom domains: https://developers.cloudflare.com/workers/configuration/routing/custom-domains/
+
+## Session progress
+
+- Reserved MSIX product: **Inkfin Markdown Viewer**, Store ID **9PNSW2RFF41M**.
+- Submission 1 exists. Properties are saved as Complete (Productivity, website/support/privacy URLs). The policy/support files still need live deployment.
+- Publishing source: https://github.com/PriyansuMaurya/Inkfin/tree/publish/microsoft-store
+- Windows MSIX build: https://github.com/PriyansuMaurya/Inkfin/actions/runs/40123888589
+- The preparation workflow successfully applied the source changes and has been removed (commit 47c8676).
+- Cloudflare sign-in completed. This account shows no Workers or Pages projects. The existing domain binding still needs inspection; do not change apex/www DNS. Browser page controls became unresponsive during that inspection.
+- Age ratings, pricing/availability, listing images, Windows installation/WACK and certification are not complete.
+
+Final observed result: Windows MSIX workflow 40123888589 **PASS**; artifact inkfin-microsoft-store-x64 (2,160,684-byte ZIP). Download while signed into GitHub. Windows installation/WACK, live privacy/support deployment and certification are still outstanding.
+
+## Downloaded package verification
+
+The downloaded artifact contains Inkfin_0.1.2.0_x64.msix (2,160,836 bytes). SHA-256: `1e82ac006b5750a83074075e994a3b7d2bd855cf61d47de7d7d8cd8ce3072d97`. The SHA file, ZIP CRC, each block-map digest (five payload files), PE x64 machine type, exact Store identity and absence of a production signature were verified locally. The original unsigned bytes are retained for Partner Center.
+
+The separate **Validate installed Store MSIX** workflow signs a copy with an ephemeral certificate, installs it on a disposable Windows Server runner, exercises rendering/refresh using the installed executable, and removes the package and certificate. Its scope and environment are recorded explicitly; it does not replace a Windows 11 desktop acceptance pass. It probes for WACK and records unavailability or Session 0 rather than claiming a certification result.
