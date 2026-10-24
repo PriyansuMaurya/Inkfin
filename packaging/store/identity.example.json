@@ -1,0 +1,6 @@
+{
+  "identityName": "COPY_PACKAGE_IDENTITY_NAME_FROM_PARTNER_CENTER",
+  "publisher": "CN=COPY_EXACT_PACKAGE_IDENTITY_PUBLISHER",
+  "publisherDisplayName": "COPY_PUBLISHER_DISPLAY_NAME",
+  "version": "0.1.2.0"
+}

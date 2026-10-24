@@ -14,3 +14,6 @@ tools/controls.txt
 # NSIS installer script: no formatter understands it, and it is compiled by
 # makensis rather than read by tooling.
 src-tauri/*.nsh
+
+# XML and PowerShell are validated by their native parsers/Windows packaging.
+packaging/store/AppxManifest.xml
