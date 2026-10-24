@@ -83,7 +83,7 @@ try {
     $evidence.packageFullName = $installed.PackageFullName
     $exe = Join-Path $installed.InstallLocation 'Inkfin.exe'
     if (-not (Test-Path -LiteralPath $exe)) { throw 'Installed application executable is missing.' }
-    & powershell.exe -NoProfile -File tools/windows/smoke-test.ps1 -Exe $exe -FixtureDirectory docs/acceptance -OutFile "$out/native-smoke.json" -ScreenshotPath "$out/native-window.png"
+    & powershell.exe -NoProfile -File tools/windows/smoke-test.ps1 -Exe $exe -FixtureDirectory docs/acceptance -OutFile 'artifacts/store-validation/native-smoke.json' -ScreenshotPath 'artifacts/store-validation/native-window.png'
     if ($LASTEXITCODE -ne 0) { throw 'Installed native-window smoke test failed; inspect native-smoke.json.' }
     $evidence.nativeWindow = 'PASS'
     # Exercise the executable from the installed package rather than target/release.
