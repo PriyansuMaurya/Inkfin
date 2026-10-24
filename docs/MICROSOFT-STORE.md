@@ -5,10 +5,10 @@ Prepared 24 October 2026 from main commit `367cb75e6c74cb7e7f59be7aa742ef85f2b4a
 ## Current state
 
 - The existing `v0.1.2` release contains the unsigned NSIS Windows installer.
-- The publishing branch now contains a separate MakeAppx MSIX path. The Tauri application is built with `--no-bundle`; the NSIS installer and its registry hooks are not wrapped inside the MSIX.
+- The main branch contains a separate MakeAppx MSIX path. The Tauri application is built with `--no-bundle`; the NSIS installer and its registry hooks are not wrapped inside the MSIX.
 - Microsoft signs MSIX packages submitted to the Store; a purchased code-signing certificate is unnecessary for this route. The traditional EXE route still needs trusted Authenticode signing and an offline installer, so the existing unsigned/bootstrapper EXE is not a substitute.
 - The Store manifest initially targets x64 Windows 11 (`10.0.22000.0`). This narrows only the new Store distribution, to use the system WebView2 runtime. The standalone EXE configuration remains as it was. Do not lower the manifest floor or advertise Windows 10 Store support without deciding and validating runtime provisioning on clean Windows 10. The MSIX does not install WebView2.
-- Windows MSIX build and MakeAppx validation **passed** in GitHub Actions run 40123888589. Windows installation, WACK and Store certification have **not** been run. Build success does not establish MSIX runtime readiness.
+- Windows MSIX build and MakeAppx validation **passed** in GitHub Actions run 40123888589. Windows Server installation/native smoke checks passed. Windows 11 desktop acceptance and a valid WACK pass remain outstanding; the CI WACK report failed with missing manifest/platform metadata.
 
 ## 1. Microsoft account and reserved identity
 
@@ -136,8 +136,8 @@ After certification succeeds and the listing is public, copy the **actual** prod
 ## Session progress
 
 - Reserved MSIX product: **Inkfin Markdown Viewer**, Store ID **9PNSW2RFF41M**.
-- Submission 1 exists. Properties are saved as Complete (Productivity, website/support/privacy URLs). The policy/support files still need live deployment.
-- Publishing source: https://github.com/PriyansuMaurya/Inkfin/tree/publish/microsoft-store
+- Submission 1 exists. Properties are saved as Complete (Productivity, website/support/privacy URLs). The privacy and support pages are now live and were verified with HTTP 200.
+- Publishing source: https://github.com/PriyansuMaurya/Inkfin/tree/main
 - Windows MSIX build: https://github.com/PriyansuMaurya/Inkfin/actions/runs/40123888589
 - The preparation workflow successfully applied the source changes and has been removed (commit 47c8676).
 - Cloudflare sign-in completed. This account shows no Workers or Pages projects. The existing domain binding still needs inspection; do not change apex/www DNS. Browser page controls became unresponsive during that inspection.
@@ -155,4 +155,10 @@ The separate **Validate installed Store MSIX** workflow signs a copy with an eph
 
 On Windows Server 2025, installation, first document window, second-document single-instance handling, unchanged source documents, uninstallation and unchanged original MSIX all passed. A native screenshot shows the installed app rendering the fixture. This is an additional CI environment, not Windows 11 desktop acceptance.
 
-The CDP rendering suite remains blocked because WebView2 did not expose a debugging target, although version 155.0.4283.62 was installed. WACK returned FAIL/exit -1, reporting missing manifest/platform metadata and empty app identity fields. A clean Windows 11 WACK run is still required; do not submit the CI report as a certification pass. Evidence: https://github.com/PriyansuMaurya/Inkfin/actions/runs/40126371747. PR #1 remains a draft.
+The CDP rendering suite remains blocked because WebView2 did not expose a debugging target, although version 155.0.4283.62 was installed. WACK returned FAIL/exit -1, reporting missing manifest/platform metadata and empty app identity fields. A clean Windows 11 WACK run is still required; do not submit the CI report as a certification pass. Evidence: https://github.com/PriyansuMaurya/Inkfin/actions/runs/40126371747. PR #1 was merged into main at 0a75f3847e983f83646c2a38b7ca5c9b410d5d09.
+
+## Main merge and live links
+
+PR #1 was merged by the owner (merge commit 0a75f3847e983f83646c2a38b7ca5c9b410d5d09). The existing Vercel Git integration deployed the website updates. https://inkfin.maurya.ie/privacy/ and https://inkfin.maurya.ie/support/ return their expected pages with HTTP 200. Cloudflare is already authoritative for maurya.ie DNS (amalia.ns.cloudflare.com and major.ns.cloudflare.com). No apex DNS, nameserver or hosting migration was performed.
+
+The owner has downloaded Inkfin-Microsoft-Store-Build.zip. Next manual step while browser control is unavailable: extract the ZIP, open the existing Store product overview, select Packages, upload Inkfin_0.1.2.0_x64.msix and inspect Microsoft's package validation results. Saving a package in the draft does not publish it. Do not double-click the unsigned Store-upload package for local installation. Current screenshots, age ratings, publisher declarations and Windows 11/WACK acceptance remain outstanding before final certification submission.
