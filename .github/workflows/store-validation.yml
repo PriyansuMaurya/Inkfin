@@ -1,0 +1,34 @@
+name: Validate installed Store MSIX
+on:
+  workflow_dispatch:
+  push:
+    branches: [publish/microsoft-store]
+    paths: [.github/workflows/store-validation.yml]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  validate:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - uses: actions/download-artifact@v4
+        with:
+          name: inkfin-microsoft-store-x64
+          path: artifacts/store-build
+          run-id: 40123888589
+          github-token: ${{ github.token }}
+      - name: Install, exercise and remove the actual MSIX
+        shell: powershell
+        run: ./tools/windows/test-store-msix.ps1 -PackageDirectory artifacts/store-build
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: inkfin-msix-validation
+          path: artifacts/store-validation/
+          if-no-files-found: warn
+          retention-days: 30
