@@ -150,3 +150,9 @@ Final observed result: Windows MSIX workflow 40123888589 **PASS**; artifact inkf
 The downloaded artifact contains Inkfin_0.1.2.0_x64.msix (2,160,836 bytes). SHA-256: `1e82ac006b5750a83074075e994a3b7d2bd855cf61d47de7d7d8cd8ce3072d97`. The SHA file, ZIP CRC, each block-map digest (five payload files), PE x64 machine type, exact Store identity and absence of a production signature were verified locally. The original unsigned bytes are retained for Partner Center.
 
 The separate **Validate installed Store MSIX** workflow signs a copy with an ephemeral certificate, installs it on a disposable Windows Server runner, exercises rendering/refresh using the installed executable, and removes the package and certificate. Its scope and environment are recorded explicitly; it does not replace a Windows 11 desktop acceptance pass. It probes for WACK and records unavailability or Session 0 rather than claiming a certification result.
+
+## Installed-package findings (run 40126371747)
+
+On Windows Server 2025, installation, first document window, second-document single-instance handling, unchanged source documents, uninstallation and unchanged original MSIX all passed. A native screenshot shows the installed app rendering the fixture. This is an additional CI environment, not Windows 11 desktop acceptance.
+
+The CDP rendering suite remains blocked because WebView2 did not expose a debugging target, although version 155.0.4283.62 was installed. WACK returned FAIL/exit -1, reporting missing manifest/platform metadata and empty app identity fields. A clean Windows 11 WACK run is still required; do not submit the CI report as a certification pass. Evidence: https://github.com/PriyansuMaurya/Inkfin/actions/runs/40126371747. PR #1 remains a draft.
