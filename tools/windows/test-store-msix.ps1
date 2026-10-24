@@ -37,6 +37,7 @@ $evidence = [ordered]@{
     osVersion = [Environment]::OSVersion.Version.ToString()
     installation = 'NOT RUN'
     rendering = 'NOT RUN'
+    nativeWindow = 'NOT RUN'
     uninstall = 'NOT RUN'
     originalUnsignedPackageUnchanged = $false
     cleanWindows11Acceptance = 'NOT RUN: this is a GitHub Windows Server runner'
@@ -45,6 +46,27 @@ $evidence = [ordered]@{
     error = $null
 }
 try {
+    $runtimePaths = @(
+        'HKLM:\SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}',
+        'HKLM:\SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}',
+        'HKCU:\SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}'
+    )
+    $runtime = @($runtimePaths | ForEach-Object { Get-ItemProperty -LiteralPath $_ -Name pv -ErrorAction SilentlyContinue })
+    $evidence.webview2BeforeTest = @($runtime | ForEach-Object { $_.pv })
+    if ($runtime.Count -eq 0) {
+        # Windows Server need not include the runtime supplied with Windows 11.
+        # Provision the documented Microsoft dependency only on this disposable runner.
+        $runtimeInstaller = Join-Path $env:RUNNER_TEMP 'WebView2StandaloneInstaller.exe'
+        Invoke-WebRequest 'https://go.microsoft.com/fwlink/p/?LinkId=2124703' -UseBasicParsing -OutFile $runtimeInstaller
+        $signature = Get-AuthenticodeSignature -LiteralPath $runtimeInstaller
+        if ($signature.Status -ne 'Valid' -or $signature.SignerCertificate.Subject -notmatch 'Microsoft Corporation') {
+            throw 'WebView2 dependency installer failed Microsoft signature validation.'
+        }
+        $setup = Start-Process -FilePath $runtimeInstaller -ArgumentList '/silent', '/install' -Wait -PassThru
+        if ($setup.ExitCode -ne 0) { throw "WebView2 dependency setup failed: $($setup.ExitCode)" }
+        Remove-Item -LiteralPath $runtimeInstaller -Force
+        $evidence.webview2Provisioned = $true
+    }
     Copy-Item -LiteralPath $package -Destination $testCopy -Force
     $cert = New-SelfSignedCertificate -Type Custom -KeyUsage DigitalSignature `
         -Subject $identity.publisher -CertStoreLocation 'Cert:\CurrentUser\My' `
@@ -61,12 +83,14 @@ try {
     $evidence.packageFullName = $installed.PackageFullName
     $exe = Join-Path $installed.InstallLocation 'Inkfin.exe'
     if (-not (Test-Path -LiteralPath $exe)) { throw 'Installed application executable is missing.' }
+    & powershell.exe -NoProfile -File tools/windows/smoke-test.ps1 -Exe $exe -FixtureDirectory docs/acceptance -OutFile "$out/native-smoke.json" -ScreenshotPath "$out/native-window.png"
+    if ($LASTEXITCODE -ne 0) { throw 'Installed native-window smoke test failed; inspect native-smoke.json.' }
+    $evidence.nativeWindow = 'PASS'
     # Exercise the executable from the installed package rather than target/release.
     # The existing probe checks real WebView2 output, local images, inert HTML,
     # blocked remote images, ordinary saves, long documents and read-only bytes.
     & node tools/windows/render-probe.mjs $exe "$out/render-probe.json"
-    if ($LASTEXITCODE -ne 0) { throw 'Installed-package rendering probe failed; inspect render-probe.json.' }
-    $evidence.rendering = 'PASS'
+    $evidence.rendering = if ($LASTEXITCODE -eq 0) { 'PASS' } else { 'FAIL: inspect render-probe.json; no rendering pass is claimed' }
     $wack = Join-Path ${env:ProgramFiles(x86)} 'Windows Kits/10/App Certification Kit/appcert.exe'
     if (-not (Test-Path -LiteralPath $wack)) {
         $evidence.wack = 'NOT AVAILABLE: Windows App Certification Kit is absent on this runner'
@@ -102,6 +126,7 @@ try {
     $evidence.originalUnsignedPackageUnchanged = ((Get-FileHash $package -Algorithm SHA256).Hash -eq $originalHash)
     $evidence | ConvertTo-Json -Depth 5 | Set-Content "$out/msix-validation.json"
 }
+if ($evidence.rendering -ne 'PASS') { throw 'Rendering validation remains unresolved; inspect captured evidence.' }
 if ($evidence.uninstall -ne 'PASS' -or -not $evidence.originalUnsignedPackageUnchanged) {
     throw 'Package removal or original-byte preservation failed; review msix-validation.json.'
 }
