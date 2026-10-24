@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
   push:
     branches: [publish/microsoft-store]
-    paths: [.github/workflows/store-validation.yml]
+    paths: [.github/workflows/store-validation.yml, tools/windows/test-store-msix.ps1]
 permissions:
   contents: read
   actions: read
